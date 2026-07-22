@@ -45,9 +45,9 @@ Or to safely back up your existing `.zshrc` first before overwriting:
 ## Modules Overview
 
 ### 1. Human Device Interaction Suite (`bin/deb/hdi.sh`)
-Provisions toolkits for agentic computer automation and web frontend engineering:
-- **Toolkit 1 (Agentic Computer Use & GUI Navigation)**: Virtual display (`xvfb`), input injection (`xdotool`, `ydotool`), clipboard (`xclip`, `wl-clipboard`), visual capture/OCR (`maim`, `scrot`, `imagemagick`, `tesseract-ocr`), headless browsers & Playwright system libraries (`chromium`, `firefox-esr`, `libnss3`, etc.).
-- **Toolkit 2 (Agentic Web Dev Frontend)**: Runtimes (`nodejs`, `npm`, `golang`, `python3`), search & code intelligence (`git`, `ripgrep`, `fd-find`, `jq`, `fzf`), and process supervision (`supervisor`, `tmux`, `make`, `build-essential`).
+Provisions toolkits for autonomous computer use and automated web frontend engineering:
+- **Toolkit 1 (Autonomous Computer Use & GUI Navigation)**: Virtual display (`xvfb`), input injection (`xdotool`, `ydotool`), clipboard (`xclip`, `wl-clipboard`), visual capture/OCR (`maim`, `scrot`, `imagemagick`, `tesseract-ocr`), headless browsers & Playwright system libraries (`chromium`, `firefox-esr`, `libnss3`, etc.). Handles `ydotool` via default APT or official `trixie-backports` with interactive confirmation.
+- **Toolkit 2 (Automated Web Dev Frontend)**: Runtimes (`nodejs`, `npm`, `golang`, `python3`), search & code intelligence (`git`, `ripgrep`, `fd-find`, `jq`, `fzf`), and process supervision (`supervisor`, `tmux`, `make`, `build-essential`).
 
 ### 2. Developer Workstation Setup (`bin/deb/dev.sh`)
 Provisions a full development workstation:

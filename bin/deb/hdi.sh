@@ -27,16 +27,44 @@ get_tailscale_ip() {
     fi
 }
 
+install_ydotool() {
+    if command -v ydotool &>/dev/null; then
+        return 0
+    fi
+
+    echo "==> Checking ydotool availability..."
+    if sudo apt install -y ydotool 2>/dev/null; then
+        MODIFIED_PATHS+=("/usr/bin/ydotool")
+        return 0
+    fi
+
+    echo ""
+    echo "⚠️  Notice: 'ydotool' is not in default Debian main. It is available via official 'trixie-backports'."
+    prompt_read "I understand the risks of potential library dependency conflicts, untested software interactions, and slower security patching (worth it for this use case!) [y/N]: " ACK_RISK_RESP "N"
+
+    if [[ "$ACK_RISK_RESP" =~ ^[Yy]$ ]]; then
+        if [ ! -f /etc/apt/sources.list.d/trixie-backports.list ]; then
+            echo "deb http://deb.debian.org/debian trixie-backports main" | sudo tee /etc/apt/sources.list.d/trixie-backports.list > /dev/null
+            MODIFIED_PATHS+=("/etc/apt/sources.list.d/trixie-backports.list")
+        fi
+        sudo apt update && sudo apt install -y -t trixie-backports ydotool
+        MODIFIED_PATHS+=("/usr/bin/ydotool (via trixie-backports)")
+    else
+        echo "--> Skipping ydotool installation per request."
+    fi
+}
+
 echo "==> Setting up Human Device Interaction (HDI) Suite (Debian/Ubuntu)..."
 
 declare -a MODIFIED_PATHS=()
 declare -a INSTALLED_TOOLKITS=()
 SELECTED_PKGS=()
 
-# Toolkit 1: Agentic Computer Use (GUI & Web Navigation)
+# Toolkit 1: Autonomous Computer Use (GUI & Web Navigation)
+# Note: ydotool is handled separately via install_ydotool()
 COMPUTER_USE_PKGS=(
     xvfb x11-utils x11vnc wmctrl
-    xdotool ydotool xclip wl-clipboard
+    xdotool xclip wl-clipboard
     maim scrot imagemagick tesseract-ocr
     chromium firefox-esr
     libnss3 libatk-bridge2.0-0 libxcomposite1 libxdamage1 libxfixes3
@@ -44,7 +72,7 @@ COMPUTER_USE_PKGS=(
     curl jq ripgrep python3 python3-pip python3-venv
 )
 
-# Toolkit 2: Agentic Web Dev Frontend
+# Toolkit 2: Automated Web Dev Frontend
 WEB_DEV_PKGS=(
     nodejs npm golang python3 python3-venv
     git ripgrep fd-find jq fzf patch diffutils
@@ -52,30 +80,35 @@ WEB_DEV_PKGS=(
 )
 
 echo ""
-echo "Toolkit 1: Agentic Computer Use & GUI Navigation"
+echo "Toolkit 1: Autonomous Computer Use & GUI Navigation"
 echo "  Packages: xvfb, xdotool, ydotool, maim, scrot, tesseract-ocr, chromium, firefox-esr, etc."
-prompt_read "Install Agentic Computer Use suite? [Y/n]: " INSTALL_CU_RESP "Y"
+prompt_read "Install Autonomous Computer Use suite? [Y/n]: " INSTALL_CU_RESP "Y"
 
 if [[ "$INSTALL_CU_RESP" =~ ^[Yy]$ ]]; then
     SELECTED_PKGS+=("${COMPUTER_USE_PKGS[@]}")
-    INSTALLED_TOOLKITS+=("Agentic Computer Use (GUI & Web Navigation)")
+    INSTALLED_TOOLKITS+=("Autonomous Computer Use (GUI & Web Navigation)")
 fi
 
 echo ""
-echo "Toolkit 2: Agentic Web Dev Frontend"
+echo "Toolkit 2: Automated Web Dev Frontend"
 echo "  Packages: nodejs, npm, golang, python3, git, ripgrep, fd-find, fzf, supervisor, tmux, make, build-essential"
-prompt_read "Install Agentic Web Dev Frontend suite? [Y/n]: " INSTALL_WD_RESP "Y"
+prompt_read "Install Automated Web Dev Frontend suite? [Y/n]: " INSTALL_WD_RESP "Y"
 
 if [[ "$INSTALL_WD_RESP" =~ ^[Yy]$ ]]; then
     SELECTED_PKGS+=("${WEB_DEV_PKGS[@]}")
-    INSTALLED_TOOLKITS+=("Agentic Web Dev Frontend")
+    INSTALLED_TOOLKITS+=("Automated Web Dev Frontend")
 fi
 
-# Deduplicate selected packages array
+# Install selected packages via APT
 if [ ${#SELECTED_PKGS[@]} -gt 0 ]; then
     readarray -t UNIQUE_PKGS < <(printf "%s\n" "${SELECTED_PKGS[@]}" | sort -u)
     echo "==> Installing selected packages..."
     sudo apt update && sudo apt install -y "${UNIQUE_PKGS[@]}"
+fi
+
+# Install ydotool if Toolkit 1 was selected
+if [[ "$INSTALL_CU_RESP" =~ ^[Yy]$ ]]; then
+    install_ydotool
 fi
 
 # Symlinks & Utilities
