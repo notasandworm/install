@@ -33,7 +33,7 @@ declare -a MODIFIED_PATHS=()
 declare -a APT_MANAGED_TOOLS=()
 
 # 1. Security Suite Checklist
-SEC_TOOLS=(ufw openssh-server unattended-upgrades fail2ban tailscale)
+SEC_TOOLS=(ufw openssh-server unattended-upgrades fail2ban tailscale vsec)
 SELECTED_SEC_TOOLS=()
 
 echo "Security suite tools & services:"
@@ -92,6 +92,13 @@ if is_sec_selected "tailscale" && ! command -v tailscale &>/dev/null; then
     curl -fsSL https://tailscale.com/install.sh | sh
     MODIFIED_PATHS+=("/usr/bin/tailscale")
     APT_MANAGED_TOOLS+=("Tailscale")
+fi
+
+# 5. vsec Installation (Server Security Dashboard CLI)
+if is_sec_selected "vsec" && ! command -v vsec &>/dev/null; then
+    echo "==> Installing vsec..."
+    curl -fsSL https://raw.githubusercontent.com/notasandworm/vsec/main/install.sh | sudo bash
+    MODIFIED_PATHS+=("/usr/local/bin/vsec")
 fi
 
 # 5. UFW Rules & Firewall Posture Setup
@@ -185,6 +192,11 @@ fi
 if is_sec_selected "unattended-upgrades"; then
     echo "  * To configure automatic unattended-upgrades priority settings, run:"
     echo "      sudo dpkg-reconfigure --priority=low unattended-upgrades"
+fi
+
+if is_sec_selected "vsec" || command -v vsec &>/dev/null; then
+    echo "  * To view your server security dashboard, run:"
+    echo "      sudo vsec"
 fi
 
 SSH_OPT=""
