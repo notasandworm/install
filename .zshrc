@@ -135,8 +135,9 @@ update-nvim() {
     echo "Neovim updated successfully! Current version:"
     "$BIN_DIR/nvim" --version | head -n 1
 }
-. '/home/matt/.cargo/env'
+. "$HOME/.cargo/env"
 
 
 # Added by Antigravity CLI installer
-export PATH="/home/matt/.local/bin:$PATH"
+export PATH="$HOME/.local/bin:$PATH"
+
