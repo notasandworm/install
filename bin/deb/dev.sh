@@ -1,10 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Reattach stdin to terminal for interactive reading when piped
-if [ ! -t 0 ]; then
-    exec < /dev/tty 2>/dev/null || true
-fi
+prompt_read() {
+    local prompt_text="$1"
+    local target_var="$2"
+    local default_val="${3:-}"
+    local input_val=""
+
+    if [ -c /dev/tty ]; then
+        read -r -p "$prompt_text" input_val < /dev/tty || input_val="$default_val"
+    else
+        input_val="$default_val"
+    fi
+    eval "$target_var=\"\${input_val:-\$default_val}\""
+}
 
 echo "==> Setting up Developer Workstation (Debian/Ubuntu)..."
 
@@ -17,15 +26,13 @@ SELECTED_PKGS=()
 
 echo "Default package suite:"
 echo "  ${DEFAULT_PKGS[*]}"
-read -r -p "Install all default packages? [Y/n]: " INSTALL_ALL_RESP
-INSTALL_ALL_RESP="${INSTALL_ALL_RESP:-Y}"
+prompt_read "Install all default packages? [Y/n]: " INSTALL_ALL_RESP "Y"
 
 if [[ "$INSTALL_ALL_RESP" =~ ^[Yy]$ ]]; then
     SELECTED_PKGS=("${DEFAULT_PKGS[@]}")
 else
     for pkg in "${DEFAULT_PKGS[@]}"; do
-        read -r -p "  Install $pkg? [Y/n]: " PKG_RESP
-        PKG_RESP="${PKG_RESP:-Y}"
+        prompt_read "  Install $pkg? [Y/n]: " PKG_RESP "Y"
         if [[ "$PKG_RESP" =~ ^[Yy]$ ]]; then
             SELECTED_PKGS+=("$pkg")
         fi

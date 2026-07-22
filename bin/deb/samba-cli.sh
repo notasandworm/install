@@ -1,9 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ ! -t 0 ]; then
-    exec < /dev/tty 2>/dev/null || true
-fi
+prompt_read() {
+    local prompt_text="$1"
+    local target_var="$2"
+    local default_val="${3:-}"
+    local is_silent="${4:-false}"
+    local input_val=""
+    local read_flags="-r"
+
+    if [ "$is_silent" = "true" ]; then
+        read_flags="-rs"
+    fi
+
+    if [ -c /dev/tty ]; then
+        read $read_flags -p "$prompt_text" input_val < /dev/tty || input_val="$default_val"
+    else
+        input_val="$default_val"
+    fi
+    eval "$target_var=\"\${input_val:-\$default_val}\""
+}
 
 echo "==> Configuring CIFS Storage Mount Client (Debian/Ubuntu)..."
 
@@ -14,24 +30,19 @@ SHARE_NAME="${2:-}"
 MOUNT_POINT="${3:-}"
 
 if [ -z "$SMB_SERVER_IP" ]; then
-    read -r -p "Enter SMB Server IP [192.168.1.10]: " SMB_SERVER_IP
-    SMB_SERVER_IP="${SMB_SERVER_IP:-192.168.1.10}"
+    prompt_read "Enter SMB Server IP [192.168.1.10]: " SMB_SERVER_IP "192.168.1.10"
 fi
 
 if [ -z "$SHARE_NAME" ]; then
-    read -r -p "Enter Share Name [storage]: " SHARE_NAME
-    SHARE_NAME="${SHARE_NAME:-storage}"
+    prompt_read "Enter Share Name [storage]: " SHARE_NAME "storage"
 fi
 
 if [ -z "$MOUNT_POINT" ]; then
-    read -r -p "Enter Mount Point [/mnt/jar-01]: " MOUNT_POINT
-    MOUNT_POINT="${MOUNT_POINT:-/mnt/jar-01}"
+    prompt_read "Enter Mount Point [/mnt/jar-01]: " MOUNT_POINT "/mnt/jar-01"
 fi
 
-read -r -p "Enter SMB Username [root]: " SMB_USER
-SMB_USER="${SMB_USER:-root}"
-
-read -r -s -p "Enter SMB Password: " SMB_PASS
+prompt_read "Enter SMB Username [root]: " SMB_USER "root"
+prompt_read "Enter SMB Password: " SMB_PASS "" "true"
 echo
 
 echo "==> Installing cifs-utils..."

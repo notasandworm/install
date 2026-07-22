@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ ! -t 0 ]; then
-    exec < /dev/tty 2>/dev/null || true
-fi
-
 echo "==> Hardening Server Baseline Security (Debian/Ubuntu)..."
 
 declare -a MODIFIED_PATHS=()

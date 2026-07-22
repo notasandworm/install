@@ -1,9 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ ! -t 0 ]; then
-    exec < /dev/tty 2>/dev/null || true
-fi
+prompt_read() {
+    local prompt_text="$1"
+    local target_var="$2"
+    local default_val="${3:-}"
+    local input_val=""
+
+    if [ -c /dev/tty ]; then
+        read -r -p "$prompt_text" input_val < /dev/tty || input_val="$default_val"
+    else
+        input_val="$default_val"
+    fi
+    eval "$target_var=\"\${input_val:-\$default_val}\""
+}
 
 echo "==> Configuring Samba File Host (Debian/Ubuntu)..."
 
@@ -18,8 +28,7 @@ sudo mkdir -p "$MNT_PATH"
 MODIFIED_PATHS+=("$MNT_PATH")
 
 # Unprivileged LXC mapping check
-read -r -p "Is this running inside an unprivileged Proxmox LXC? [y/N]: " IS_LXC
-IS_LXC="${IS_LXC:-N}"
+prompt_read "Is this running inside an unprivileged Proxmox LXC? [y/N]: " IS_LXC "N"
 
 if [[ "$IS_LXC" =~ ^[Yy]$ ]]; then
     echo "==> Applying unprivileged LXC ID mapping (100000:100000)..."
