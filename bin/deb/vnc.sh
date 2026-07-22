@@ -45,6 +45,11 @@ echo "Headless Desktop Core Suite:"
 echo "  Packages: xvfb, x11-utils, x11vnc, novnc, websockify"
 prompt_read "Install Headless Desktop & noVNC Web Suite? [Y/n]: " INSTALL_VNC_RESP "Y"
 
+if [[ ! "$INSTALL_VNC_RESP" =~ ^[Yy]$ ]]; then
+    echo "okay. bye. :("
+    exit 0
+fi
+
 TS_SERVE_RESP="N"
 if command -v tailscale &>/dev/null; then
     echo ""
@@ -58,23 +63,16 @@ echo "  I recommend using Cloudflare Tunnels (cloudflared) with Cloudflare Acces
 echo "  for secure, zero-trust remote browser access from anywhere."
 prompt_read "Install cloudflared via official Cloudflare GPG repository? [Y/n]: " INSTALL_CF_RESP "Y"
 
-VNC_PASS="vncpassword"
-if [[ "$INSTALL_VNC_RESP" =~ ^[Yy]$ ]]; then
-    echo ""
-    prompt_read "Set VNC session password [default: vncpassword]: " VNC_PASS "vncpassword" "true"
-    echo ""
-fi
+echo ""
+prompt_read "Set VNC session password [default: vncpassword]: " VNC_PASS "vncpassword" "true"
+echo ""
 
 # ==============================================================================
 # INSTALLATION & PROVISIONING PHASE (RUNS AFTER ALL PROMPTS ARE COMPLETE)
 # ==============================================================================
 
-APT_PKGS=()
-
-if [[ "$INSTALL_VNC_RESP" =~ ^[Yy]$ ]]; then
-    APT_PKGS+=(xvfb x11-utils x11vnc novnc websockify)
-    INSTALLED_COMPONENTS+=("Headless Desktop & noVNC Web Suite")
-fi
+APT_PKGS=(xvfb x11-utils x11vnc novnc websockify)
+INSTALLED_COMPONENTS+=("Headless Desktop & noVNC Web Suite")
 
 if [[ "$INSTALL_CF_RESP" =~ ^[Yy]$ ]]; then
     echo "==> Adding official Cloudflare GPG keyring & APT repository..."
@@ -92,18 +90,24 @@ if [ ${#APT_PKGS[@]} -gt 0 ]; then
     sudo apt update && sudo apt install -y "${UNIQUE_PKGS[@]}"
 fi
 
-# VNC Password Setup
-if [[ "$INSTALL_VNC_RESP" =~ ^[Yy]$ ]]; then
-    mkdir -p "$HOME/.vnc"
+# VNC Password Setup (Executed AFTER apt installation of x11vnc)
+mkdir -p "$HOME/.vnc"
+if command -v x11vnc &>/dev/null; then
+    echo "==> Generating VNC password file at $HOME/.vnc/passwd..."
     x11vnc -storepw "$VNC_PASS" "$HOME/.vnc/passwd" >/dev/null 2>&1 || true
+fi
+
+if [ -f "$HOME/.vnc/passwd" ]; then
     chmod 600 "$HOME/.vnc/passwd"
     MODIFIED_PATHS+=("$HOME/.vnc/passwd")
+else
+    echo "⚠️  Warning: Could not create $HOME/.vnc/passwd file automatically."
+fi
 
-    # Symlink noVNC vnc.html -> index.html for direct root URL access
-    if [ -d /usr/share/novnc ] && [ ! -f /usr/share/novnc/index.html ]; then
-        sudo ln -sf /usr/share/novnc/vnc.html /usr/share/novnc/index.html
-        MODIFIED_PATHS+=("/usr/share/novnc/index.html (symlink -> vnc.html)")
-    fi
+# Symlink noVNC vnc.html -> index.html for direct root URL access
+if [ -d /usr/share/novnc ] && [ ! -f /usr/share/novnc/index.html ]; then
+    sudo ln -sf /usr/share/novnc/vnc.html /usr/share/novnc/index.html
+    MODIFIED_PATHS+=("/usr/share/novnc/index.html (symlink -> vnc.html)")
 fi
 
 # Tailscale Serve Configuration
@@ -144,13 +148,11 @@ fi
 
 echo ""
 echo "Post-Install Action Required:"
-if [[ "$INSTALL_VNC_RESP" =~ ^[Yy]$ ]]; then
-    echo "  * noVNC Web Desktop Status:"
-    if [ -n "$LOCAL_IP" ]; then
-        echo "      Direct Web Desktop: http://${LOCAL_IP}:6080/"
-    else
-        echo "      Direct Web Desktop: http://localhost:6080/"
-    fi
+echo "  * noVNC Web Desktop Status:"
+if [ -n "$LOCAL_IP" ]; then
+    echo "      Direct Web Desktop: http://${LOCAL_IP}:6080/"
+else
+    echo "      Direct Web Desktop: http://localhost:6080/"
 fi
 
 if [[ "$TS_SERVE_RESP" =~ ^[Yy]$ ]]; then
