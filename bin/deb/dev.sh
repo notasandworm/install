@@ -39,19 +39,47 @@ else
     done
 fi
 
+# 2. Additional Toolchains & Binaries Checklist
+EXTRA_TOOLS=(docker gh starship uv agy rust go tailscale)
+SELECTED_EXTRA_TOOLS=()
+
+echo ""
+echo "Additional toolchains & services:"
+echo "  ${EXTRA_TOOLS[*]}"
+prompt_read "Install all additional toolchains & services? [Y/n]: " INSTALL_EXTRA_RESP "Y"
+
+if [[ "$INSTALL_EXTRA_RESP" =~ ^[Yy]$ ]]; then
+    SELECTED_EXTRA_TOOLS=("${EXTRA_TOOLS[@]}")
+else
+    for tool in "${EXTRA_TOOLS[@]}"; do
+        prompt_read "  Install $tool? [Y/n]: " TOOL_RESP "Y"
+        if [[ "$TOOL_RESP" =~ ^[Yy]$ ]]; then
+            SELECTED_EXTRA_TOOLS+=("$tool")
+        fi
+    done
+fi
+
+is_tool_selected() {
+    local target="$1"
+    for t in "${SELECTED_EXTRA_TOOLS[@]}"; do
+        [ "$t" = "$target" ] && return 0
+    done
+    return 1
+}
+
 if [ ${#SELECTED_PKGS[@]} -gt 0 ]; then
     echo "==> Installing selected APT packages..."
     sudo apt update && sudo apt install -y "${SELECTED_PKGS[@]}"
 fi
 
-# 2. Symlinks
+# 3. Symlinks
 mkdir -p "$HOME/.local/bin"
 if command -v fdfind &>/dev/null && [ ! -f "$HOME/.local/bin/fd" ]; then
     ln -s "$(which fdfind)" "$HOME/.local/bin/fd"
     MODIFIED_PATHS+=("$HOME/.local/bin/fd (symlink -> fdfind)")
 fi
 
-# 3. Shell Setup & .zshrc Integration
+# 4. Shell Setup & .zshrc Integration
 if command -v zsh &>/dev/null; then
     ZSH_PATH="$(which zsh)"
     if [ "${SHELL:-}" != "$ZSH_PATH" ]; then
@@ -80,14 +108,14 @@ if command -v zsh &>/dev/null; then
     MODIFIED_PATHS+=("$HOME/.zshrc")
 fi
 
-if ! command -v starship &>/dev/null; then
+if is_tool_selected "starship" && ! command -v starship &>/dev/null; then
     echo "==> Installing Starship prompt..."
     curl -sS https://starship.rs/install.sh | sh -s -- -y
     MODIFIED_PATHS+=("/usr/local/bin/starship")
 fi
 
-# 4. Docker Engine Installation (Debian Official APT Repo)
-if ! command -v docker &>/dev/null; then
+# 5. Docker Engine Installation (Debian Official APT Repo)
+if is_tool_selected "docker" && ! command -v docker &>/dev/null; then
     echo "==> Installing Docker Engine..."
     sudo apt remove -y docker.io docker-compose docker-doc podman-docker containerd runc 2>/dev/null || true
     
@@ -115,8 +143,8 @@ EOF
     APT_MANAGED_TOOLS+=("Docker Engine & Docker Compose")
 fi
 
-# 5. GitHub CLI (Official APT Repo)
-if ! command -v gh &>/dev/null; then
+# 6. GitHub CLI (Official APT Repo)
+if is_tool_selected "gh" && ! command -v gh &>/dev/null; then
     echo "==> Installing GitHub CLI..."
     sudo mkdir -p -m 755 /etc/apt/keyrings
     wget -nv -O- https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null
@@ -129,25 +157,25 @@ if ! command -v gh &>/dev/null; then
     APT_MANAGED_TOOLS+=("GitHub CLI (gh)")
 fi
 
-# 6. Standalone Binaries & Toolchains
-if ! command -v uv &>/dev/null; then
+# 7. Standalone Binaries & Toolchains
+if is_tool_selected "uv" && ! command -v uv &>/dev/null; then
     echo "==> Installing uv (Python package manager)..."
     curl -LsSf https://astral.sh/uv/install.sh | sh
     MODIFIED_PATHS+=("$HOME/.local/bin/uv")
 fi
 
-if ! command -v agy &>/dev/null; then
+if is_tool_selected "agy" && ! command -v agy &>/dev/null; then
     echo "==> Installing Antigravity CLI (agy)..."
     curl -fsSL https://antigravity.google/cli/install.sh | bash || true
 fi
 
-if ! command -v rustc &>/dev/null; then
+if is_tool_selected "rust" && ! command -v rustc &>/dev/null; then
     echo "==> Installing Rust Toolchain..."
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
     MODIFIED_PATHS+=("$HOME/.cargo/bin/rustc")
 fi
 
-if ! command -v go &>/dev/null; then
+if is_tool_selected "go" && ! command -v go &>/dev/null; then
     echo "==> Installing Go Toolchain..."
     GO_VER="1.24.5"
     wget -q "https://go.dev/dl/go${GO_VER}.linux-amd64.tar.gz" -O /tmp/go.tar.gz
@@ -157,7 +185,7 @@ if ! command -v go &>/dev/null; then
     MODIFIED_PATHS+=("/usr/local/go")
 fi
 
-if ! command -v tailscale &>/dev/null; then
+if is_tool_selected "tailscale" && ! command -v tailscale &>/dev/null; then
     echo "==> Installing Tailscale..."
     curl -fsSL https://tailscale.com/install.sh | sh
     MODIFIED_PATHS+=("/usr/bin/tailscale")
