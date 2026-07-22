@@ -102,9 +102,9 @@ VNC_PW_FILE="$VNC_DIR/passwd"
 
 if command -v x11vnc &>/dev/null; then
     echo "==> Generating VNC password file at $VNC_PW_FILE..."
-    x11vnc -storepw "$VNC_PASS" "$VNC_PW_FILE" 2>/dev/null || \
-    (printf "%s\n%s\n" "$VNC_PASS" "$VNC_PASS" | x11vnc -storepw "$VNC_PW_FILE" 2>/dev/null) || \
-    (echo "$VNC_PASS" | x11vnc -storepw - "$VNC_PW_FILE" 2>/dev/null) || true
+    echo "y" | x11vnc -storepw "$VNC_PASS" "$VNC_PW_FILE" >/dev/null 2>&1 || \
+    (printf "%s\n%s\ny\n" "$VNC_PASS" "$VNC_PASS" | x11vnc -storepw "$VNC_PW_FILE" >/dev/null 2>&1) || \
+    x11vnc -storepw "$VNC_PASS" "$VNC_PW_FILE" <<< "y" >/dev/null 2>&1 || true
     
     if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
         chown -R "$SUDO_USER:$SUDO_USER" "$VNC_DIR" 2>/dev/null || true
