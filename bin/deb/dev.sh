@@ -192,11 +192,21 @@ if is_tool_selected "tailscale" && ! command -v tailscale &>/dev/null; then
     APT_MANAGED_TOOLS+=("Tailscale")
 fi
 
-# 7. Execution Summary & Review Block
+# 8. Execution Summary & Review Block
 echo ""
 echo "=========================================="
 echo "==> Workstation Provisioning Complete"
 echo "=========================================="
+
+echo "Installed Packages & Tools:"
+if [ ${#SELECTED_PKGS[@]} -gt 0 ]; then
+    echo "  - Base APT Packages: ${SELECTED_PKGS[*]}"
+fi
+if [ ${#SELECTED_EXTRA_TOOLS[@]} -gt 0 ]; then
+    echo "  - Additional Toolchains & Services: ${SELECTED_EXTRA_TOOLS[*]}"
+fi
+
+echo ""
 echo "Modified or Created Paths:"
 for path in "${MODIFIED_PATHS[@]}"; do
     echo "  - $path"
@@ -211,3 +221,16 @@ if [ ${#APT_MANAGED_TOOLS[@]} -gt 0 ]; then
     done
     echo "  To update these tools in the future, simply run: sudo apt update && sudo apt upgrade"
 fi
+
+# NOTE FOR DEVELOPERS: Add post-installation action/service activation instructions below
+# for any packages or services that require manual user setup (e.g. 'sudo tailscale up',
+# 'sudo dpkg-reconfigure --priority=low unattended-upgrades', etc.).
+echo ""
+echo "Post-Install Action Required:"
+if is_tool_selected "tailscale"; then
+    echo "  * Tailscale installed! To authenticate and connect to your mesh network, run:"
+    echo "      sudo tailscale up"
+else
+    echo "  (No manual service activation actions required)"
+fi
+

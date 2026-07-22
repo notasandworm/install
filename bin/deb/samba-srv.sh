@@ -66,8 +66,20 @@ echo ""
 echo "=========================================="
 echo "==> Samba Server Provisioning Complete"
 echo "=========================================="
+echo "Installed Packages & Tools:"
+echo "  - File Server Suite: samba, ufw"
+echo ""
+echo "Storage Path: ${MNT_PATH}"
 echo "Modified or Created Paths:"
 for path in "${MODIFIED_PATHS[@]}"; do
     echo "  - $path"
 done
-echo "Storage Path: ${MNT_PATH}"
+
+# NOTE FOR DEVELOPERS: Add post-installation action/service activation instructions below
+# for any packages or services that require manual user setup (e.g. 'sudo tailscale up',
+# 'sudo dpkg-reconfigure --priority=low unattended-upgrades', etc.).
+echo ""
+echo "Post-Install Action Required:"
+echo "  * Add a Samba user password for authentication by running:"
+echo "      sudo smbpasswd -a \$USER"
+

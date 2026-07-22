@@ -74,8 +74,20 @@ echo ""
 echo "=========================================="
 echo "==> Samba Client Configuration Complete"
 echo "=========================================="
+echo "Installed Packages & Tools:"
+echo "  - Storage Mount Client: cifs-utils"
+echo ""
 echo "Mount Target: //${SMB_SERVER_IP}/${SHARE_NAME} -> ${MOUNT_POINT}"
 echo "Modified or Created Paths:"
 for path in "${MODIFIED_PATHS[@]}"; do
     echo "  - $path"
 done
+
+# NOTE FOR DEVELOPERS: Add post-installation action/service activation instructions below
+# for any packages or services that require manual user setup (e.g. 'sudo tailscale up',
+# 'sudo dpkg-reconfigure --priority=low unattended-upgrades', etc.).
+echo ""
+echo "Post-Install Action Required:"
+echo "  * Verify mounted storage and connectivity by running:"
+echo "      df -h ${MOUNT_POINT}"
+

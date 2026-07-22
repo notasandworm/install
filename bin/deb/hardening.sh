@@ -33,7 +33,19 @@ echo ""
 echo "=========================================="
 echo "==> Server Hardening Complete"
 echo "=========================================="
+echo "Installed Packages & Tools:"
+echo "  - Security Suite: ufw, openssh-server, unattended-upgrades, fail2ban"
+echo ""
 echo "Modified or Created Paths:"
 for path in "${MODIFIED_PATHS[@]}"; do
     echo "  - $path"
 done
+
+# NOTE FOR DEVELOPERS: Add post-installation action/service activation instructions below
+# for any packages or services that require manual user setup (e.g. 'sudo tailscale up',
+# 'sudo dpkg-reconfigure --priority=low unattended-upgrades', etc.).
+echo ""
+echo "Post-Install Action Required:"
+echo "  * To configure automatic unattended-upgrades priority settings, run:"
+echo "      sudo dpkg-reconfigure --priority=low unattended-upgrades"
+
