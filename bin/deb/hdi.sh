@@ -27,31 +27,14 @@ get_tailscale_ip() {
     fi
 }
 
-install_ydotool() {
+check_ydotool_needs_backports() {
     if command -v ydotool &>/dev/null; then
-        return 0
+        return 1
     fi
-
-    echo "==> Checking ydotool availability..."
-    if sudo apt install -y ydotool 2>/dev/null; then
-        MODIFIED_PATHS+=("/usr/bin/ydotool")
-        return 0
+    if apt-cache policy ydotool 2>/dev/null | grep -q "Candidate:" && ! apt-cache policy ydotool 2>/dev/null | grep -q "Candidate: (none)"; then
+        return 1
     fi
-
-    echo ""
-    echo "⚠️  Notice: 'ydotool' is not in default Debian main. It is available via official 'trixie-backports'."
-    prompt_read "I understand the risks of potential library dependency conflicts, untested software interactions, and slower security patching (worth it for this use case!) [y/N]: " ACK_RISK_RESP "N"
-
-    if [[ "$ACK_RISK_RESP" =~ ^[Yy]$ ]]; then
-        if [ ! -f /etc/apt/sources.list.d/trixie-backports.list ]; then
-            echo "deb http://deb.debian.org/debian trixie-backports main" | sudo tee /etc/apt/sources.list.d/trixie-backports.list > /dev/null
-            MODIFIED_PATHS+=("/etc/apt/sources.list.d/trixie-backports.list")
-        fi
-        sudo apt update && sudo apt install -y -t trixie-backports ydotool
-        MODIFIED_PATHS+=("/usr/bin/ydotool (via trixie-backports)")
-    else
-        echo "--> Skipping ydotool installation per request."
-    fi
+    return 0
 }
 
 echo "==> Setting up Human Device Interaction (HDI) Suite (Debian/Ubuntu)..."
@@ -61,7 +44,6 @@ declare -a INSTALLED_TOOLKITS=()
 SELECTED_PKGS=()
 
 # Toolkit 1: Autonomous Computer Use (GUI & Web Navigation)
-# Note: ydotool is handled separately via install_ydotool()
 COMPUTER_USE_PKGS=(
     xvfb x11-utils x11vnc wmctrl
     xdotool xclip wl-clipboard
@@ -79,14 +61,42 @@ WEB_DEV_PKGS=(
     supervisor tmux make build-essential
 )
 
+ENABLE_BACKPORTS=false
+NEEDS_BACKPORTS=false
+
+if check_ydotool_needs_backports; then
+    NEEDS_BACKPORTS=true
+fi
+
+# ==============================================================================
+# UPFRONT USER PROMPTS
+# ==============================================================================
+
 echo ""
 echo "Toolkit 1: Autonomous Computer Use & GUI Navigation"
 echo "  Packages: xvfb, xdotool, ydotool, maim, scrot, tesseract-ocr, chromium, firefox-esr, etc."
+
+if [ "$NEEDS_BACKPORTS" = "true" ]; then
+    echo "⚠️  Warning: 'ydotool' is not in default Debian main. Installing Toolkit 1 requires adding official 'trixie-backports'."
+fi
+
 prompt_read "Install Autonomous Computer Use suite? [Y/n]: " INSTALL_CU_RESP "Y"
 
 if [[ "$INSTALL_CU_RESP" =~ ^[Yy]$ ]]; then
-    SELECTED_PKGS+=("${COMPUTER_USE_PKGS[@]}")
-    INSTALLED_TOOLKITS+=("Autonomous Computer Use (GUI & Web Navigation)")
+    if [ "$NEEDS_BACKPORTS" = "true" ]; then
+        prompt_read "I understand the risks of potential library dependency conflicts, untested software interactions, and slower security patching (worth it for this use case!) [y/N]: " ACK_RISK_RESP "N"
+        if [[ "$ACK_RISK_RESP" =~ ^[Yy]$ ]]; then
+            ENABLE_BACKPORTS=true
+            SELECTED_PKGS+=("${COMPUTER_USE_PKGS[@]}")
+            INSTALLED_TOOLKITS+=("Autonomous Computer Use (GUI & Web Navigation)")
+        else
+            echo "okay. thanks. bye. :("
+        fi
+    else
+        SELECTED_PKGS+=("${COMPUTER_USE_PKGS[@]}")
+        SELECTED_PKGS+=("ydotool")
+        INSTALLED_TOOLKITS+=("Autonomous Computer Use (GUI & Web Navigation)")
+    fi
 fi
 
 echo ""
@@ -99,16 +109,26 @@ if [[ "$INSTALL_WD_RESP" =~ ^[Yy]$ ]]; then
     INSTALLED_TOOLKITS+=("Automated Web Dev Frontend")
 fi
 
-# Install selected packages via APT
-if [ ${#SELECTED_PKGS[@]} -gt 0 ]; then
-    readarray -t UNIQUE_PKGS < <(printf "%s\n" "${SELECTED_PKGS[@]}" | sort -u)
-    echo "==> Installing selected packages..."
-    sudo apt update && sudo apt install -y "${UNIQUE_PKGS[@]}"
+# ==============================================================================
+# INSTALLATION & PROVISIONING PHASE (RUNS AFTER ALL PROMPTS ARE COMPLETE)
+# ==============================================================================
+
+if [ "$ENABLE_BACKPORTS" = "true" ]; then
+    echo "==> Configuring trixie-backports repository..."
+    if [ ! -f /etc/apt/sources.list.d/trixie-backports.list ]; then
+        echo "deb http://deb.debian.org/debian trixie-backports main" | sudo tee /etc/apt/sources.list.d/trixie-backports.list > /dev/null
+        MODIFIED_PATHS+=("/etc/apt/sources.list.d/trixie-backports.list")
+    fi
+    sudo apt update
+    echo "==> Installing ydotool via trixie-backports..."
+    sudo apt install -y -t trixie-backports ydotool || true
+    MODIFIED_PATHS+=("/usr/bin/ydotool (via trixie-backports)")
 fi
 
-# Install ydotool if Toolkit 1 was selected
-if [[ "$INSTALL_CU_RESP" =~ ^[Yy]$ ]]; then
-    install_ydotool
+if [ ${#SELECTED_PKGS[@]} -gt 0 ]; then
+    readarray -t UNIQUE_PKGS < <(printf "%s\n" "${SELECTED_PKGS[@]}" | sort -u)
+    echo "==> Installing selected packages via APT..."
+    sudo apt update && sudo apt install -y "${UNIQUE_PKGS[@]}"
 fi
 
 # Symlinks & Utilities
@@ -121,7 +141,9 @@ fi
 LOCAL_IP="$(get_local_ip)"
 TS_IP="$(get_tailscale_ip)"
 
-# Execution Summary Block
+# ==============================================================================
+# EXECUTION SUMMARY BLOCK
+# ==============================================================================
 echo ""
 echo "=========================================="
 echo "==> Human Device Interaction (HDI) Suite Complete"

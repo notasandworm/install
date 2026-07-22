@@ -4,23 +4,25 @@ I built this modular post-installation repository to automate provisioning, base
 
 ---
 
-## Directory Structure
+## Single-Line Remote Execution
 
-```text
-.
-├── .zshrc               # My personal Zsh shell configuration & functions
-├── bin/
-│   ├── README.md        # Directory placeholder note
-│   ├── arch/
-│   │   └── README.md    # Arch directory placeholder note
-│   └── deb/
-│       ├── README.md    # Debian directory placeholder note
-│       ├── hdi.sh       # Human Device Interaction suite (Agentic Computer Use & Web Dev Frontend)
-│       ├── dev.sh       # Developer workstation suite (Packages, Zsh, Docker, Go, Rust, uv, agy, gh)
-│       ├── hardening.sh # Server security baseline (UFW, SSH hardening, fail2ban, auto-upgrades, Tailscale, vsec)
-│       ├── samba-srv.sh # Samba storage host setup & Proxmox LXC unprivileged container mapping
-│       └── samba-cli.sh # CIFS client storage automount & credential management
-└── README.md            # You are here!
+You can run any full provisioning module remotely via `curl`:
+
+```bash
+# Human Device Interaction Suite (HDI)
+curl -fsSL https://raw.githubusercontent.com/notasandworm/install/dev/bin/deb/hdi.sh | bash
+
+# Developer Workstation & Tooling
+curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/dev.sh | bash
+
+# Server Hardening & Security Baseline
+curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/hardening.sh | bash
+
+# Samba Storage Server Host
+curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/samba-srv.sh | bash
+
+# CIFS Mount Client
+curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/samba-cli.sh | bash
 ```
 
 ---
@@ -74,29 +76,6 @@ Mounts remote CIFS shares on client nodes:
 - Prompts for SMB IP, share name, mount point, username, and password.
 - Stores credentials securely in `/etc/cifs-credentials` (`chmod 600`).
 - Configures `/etc/fstab` for automatic network mounting (`_netdev,x-systemd.automount`).
-
----
-
-## Single-Line Remote Execution
-
-You can run any full provisioning module remotely via `curl`:
-
-```bash
-# Human Device Interaction Suite (HDI)
-curl -fsSL https://raw.githubusercontent.com/notasandworm/install/dev/bin/deb/hdi.sh | bash
-
-# Developer Workstation & Tooling
-curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/dev.sh | bash
-
-# Server Hardening & Security Baseline
-curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/hardening.sh | bash
-
-# Samba Storage Server Host
-curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/samba-srv.sh | bash
-
-# CIFS Mount Client
-curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/samba-cli.sh | bash
-```
 
 ---
 
