@@ -91,17 +91,31 @@ if [ ${#APT_PKGS[@]} -gt 0 ]; then
 fi
 
 # VNC Password Setup (Executed AFTER apt installation of x11vnc)
-mkdir -p "$HOME/.vnc"
-if command -v x11vnc &>/dev/null; then
-    echo "==> Generating VNC password file at $HOME/.vnc/passwd..."
-    x11vnc -storepw "$VNC_PASS" "$HOME/.vnc/passwd" >/dev/null 2>&1 || true
+VNC_DIR="$HOME/.vnc"
+if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+    USER_HOME="$(eval echo "~$SUDO_USER")"
+    VNC_DIR="$USER_HOME/.vnc"
 fi
 
-if [ -f "$HOME/.vnc/passwd" ]; then
-    chmod 600 "$HOME/.vnc/passwd"
-    MODIFIED_PATHS+=("$HOME/.vnc/passwd")
+mkdir -p "$VNC_DIR"
+VNC_PW_FILE="$VNC_DIR/passwd"
+
+if command -v x11vnc &>/dev/null; then
+    echo "==> Generating VNC password file at $VNC_PW_FILE..."
+    x11vnc -storepw "$VNC_PASS" "$VNC_PW_FILE" 2>/dev/null || \
+    (printf "%s\n%s\n" "$VNC_PASS" "$VNC_PASS" | x11vnc -storepw "$VNC_PW_FILE" 2>/dev/null) || \
+    (echo "$VNC_PASS" | x11vnc -storepw - "$VNC_PW_FILE" 2>/dev/null) || true
+    
+    if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+        chown -R "$SUDO_USER:$SUDO_USER" "$VNC_DIR" 2>/dev/null || true
+    fi
+fi
+
+if [ -f "$VNC_PW_FILE" ]; then
+    chmod 600 "$VNC_PW_FILE"
+    MODIFIED_PATHS+=("$VNC_PW_FILE")
 else
-    echo "⚠️  Warning: Could not create $HOME/.vnc/passwd file automatically."
+    echo "⚠️  Warning: Could not create VNC password file at $VNC_PW_FILE."
 fi
 
 # Symlink noVNC vnc.html -> index.html for direct root URL access
