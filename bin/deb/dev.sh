@@ -52,7 +52,7 @@ else
 fi
 
 # 2. Additional Toolchains & Binaries Checklist
-EXTRA_TOOLS=(docker gh starship uv agy rust go tailscale)
+EXTRA_TOOLS=(docker gh starship uv agy rust go)
 SELECTED_EXTRA_TOOLS=()
 
 echo ""
@@ -197,13 +197,6 @@ if is_tool_selected "go" && ! command -v go &>/dev/null; then
     MODIFIED_PATHS+=("/usr/local/go")
 fi
 
-if is_tool_selected "tailscale" && ! command -v tailscale &>/dev/null; then
-    echo "==> Installing Tailscale..."
-    curl -fsSL https://tailscale.com/install.sh | sh
-    MODIFIED_PATHS+=("/usr/bin/tailscale")
-    APT_MANAGED_TOOLS+=("Tailscale")
-fi
-
 # 8. Execution Summary & Review Block
 echo ""
 echo "=========================================="
@@ -239,10 +232,6 @@ fi
 # 'sudo dpkg-reconfigure --priority=low unattended-upgrades', etc.).
 echo ""
 echo "Post-Install Action Required:"
-if is_tool_selected "tailscale"; then
-    echo "  * Tailscale installed! To authenticate and connect to your mesh network, run:"
-    echo "      sudo tailscale up"
-fi
 echo "  * Add your public SSH key to: ~/.ssh/authorized_keys"
 echo "  * (Optional) Edit SSH server config to harden authentication:"
 echo "      sudo nano /etc/ssh/sshd_config"
@@ -260,7 +249,7 @@ fi
 
 if [ -n "$TS_IP" ]; then
     echo "  * Tailscale SSH:       ssh ${USER}@${TS_IP}"
-elif is_tool_selected "tailscale" || command -v tailscale &>/dev/null; then
+elif command -v tailscale &>/dev/null; then
     echo "  * Tailscale SSH:       Run 'sudo tailscale up' first to obtain Tailscale IP"
 fi
 
