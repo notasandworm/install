@@ -1,6 +1,6 @@
 # Post-Install Provisioning & Hardening Suite
 
-I built this modular post-installation repository to automate provisioning and baseline security setup across my Debian and Ubuntu workstations and servers.
+I built this modular post-installation repository to automate provisioning, baseline security setup, and human device interaction toolkits across my Debian, Ubuntu, and Arch Linux workstations and servers.
 
 ---
 
@@ -11,10 +11,13 @@ I built this modular post-installation repository to automate provisioning and b
 ├── .zshrc               # My personal Zsh shell configuration & functions
 ├── bin/
 │   ├── README.md        # Directory placeholder note
+│   ├── arch/
+│   │   └── README.md    # Arch directory placeholder note
 │   └── deb/
 │       ├── README.md    # Debian directory placeholder note
-│       ├── dev.sh       # Developer workstation suite (Packages, Zsh, Docker, Go, Rust, uv, agy, gh, Tailscale)
-│       ├── hardening.sh # Server security baseline (UFW, SSH hardening, fail2ban, auto-upgrades)
+│       ├── hdi.sh       # Human Device Interaction suite (Agentic Computer Use & Web Dev Frontend)
+│       ├── dev.sh       # Developer workstation suite (Packages, Zsh, Docker, Go, Rust, uv, agy, gh)
+│       ├── hardening.sh # Server security baseline (UFW, SSH hardening, fail2ban, auto-upgrades, Tailscale, vsec)
 │       ├── samba-srv.sh # Samba storage host setup & Proxmox LXC unprivileged container mapping
 │       └── samba-cli.sh # CIFS client storage automount & credential management
 └── README.md            # You are here!
@@ -41,42 +44,32 @@ Or to safely back up your existing `.zshrc` first before overwriting:
 
 ## Modules Overview
 
-### 1. Developer Workstation Setup (`bin/deb/dev.sh`)
+### 1. Human Device Interaction Suite (`bin/deb/hdi.sh`)
+Provisions toolkits for agentic computer automation and web frontend engineering:
+- **Toolkit 1 (Agentic Computer Use & GUI Navigation)**: Virtual display (`xvfb`), input injection (`xdotool`, `ydotool`), clipboard (`xclip`, `wl-clipboard`), visual capture/OCR (`maim`, `scrot`, `imagemagick`, `tesseract-ocr`), headless browsers & Playwright system libraries (`chromium`, `firefox-esr`, `libnss3`, etc.).
+- **Toolkit 2 (Agentic Web Dev Frontend)**: Runtimes (`nodejs`, `npm`, `golang`, `python3`), search & code intelligence (`git`, `ripgrep`, `fd-find`, `jq`, `fzf`), and process supervision (`supervisor`, `tmux`, `make`, `build-essential`).
+
+### 2. Developer Workstation Setup (`bin/deb/dev.sh`)
 Provisions a full development workstation:
 - **CLI & Core Tools**: Prompts interactively to install `git`, `jq`, `tree`, `zip`, `unzip`, `wget`, `curl`, `zsh`, `xclip`, `ripgrep`, `fzf`, `fd-find`, `zoxide`, `eza`, `bat`, `btop`, `gcc`, `ca-certificates`.
-- **Shell Customization**:
-  - Sets Zsh as default shell.
-  - Automatically deploys my `.zshrc` configuration (backing up any pre-existing `~/.zshrc`).
-  - Installs the [Starship](https://starship.rs) prompt.
-- **APT Repository Managed Services**:
-  - Installs official **Docker Engine** (`docker-ce`, `docker-compose-plugin`, `docker-buildx-plugin`) and adds current user to the `docker` group.
-  - Installs official **GitHub CLI** (`gh`).
-- **Developer Toolchains & Binaries**:
-  - [uv](https://astral.sh/uv) (Fast Python package installer)
-  - [Antigravity CLI](https://antigravity.google) (`agy`)
-  - [Rust](https://rustup.rs) (`rustc`, `cargo`)
-  - **Go** (Tarball installation to `/usr/local/go`)
-  - [Tailscale](https://tailscale.com) mesh VPN
+- **Shell Customization**: Sets Zsh as default shell, deploys custom `.zshrc`, and installs Starship prompt.
+- **APT Repository Managed Services**: Installs official **Docker Engine** and **GitHub CLI** (`gh`).
+- **Developer Toolchains & Binaries**: [uv](https://astral.sh/uv), [Antigravity CLI](https://antigravity.google) (`agy`), [Rust](https://rustup.rs), and **Go**.
 
-> **Maintenance Note**: Future updates for Docker Engine, GitHub CLI, and Tailscale are automatically handled via your native package manager:
-> ```bash
-> sudo apt update && sudo apt upgrade
-> ```
+### 3. Server Baseline Hardening & Remote Access (`bin/deb/hardening.sh`)
+Secures a server baseline and remote access:
+- Installs `ufw`, `openssh-server`, `unattended-upgrades`, `fail2ban`, `tailscale`, and `vsec`.
+- Configures default deny incoming UFW policy and restricts SSH access.
+- Supports custom SSH ports with automated `/etc/ssh/sshd_config.d/custom-port.conf` configuration.
+- Hardens SSH home directory permissions (`~/.ssh`, `authorized_keys`).
 
-### 2. Server Baseline Hardening (`bin/deb/hardening.sh`)
-Secures a server baseline:
-- Installs `ufw`, `openssh-server`, `unattended-upgrades`, `fail2ban`.
-- Configures default deny incoming, default allow outgoing UFW policy.
-- Restricts SSH access to local subnet (`192.168.1.0/24`).
-- Hardens SSH home directory file permissions (`~/.ssh`, `authorized_keys`).
-
-### 3. Samba File Host (`bin/deb/samba-srv.sh`)
+### 4. Samba File Host (`bin/deb/samba-srv.sh`)
 Provisions a Samba file server:
 - Installs `samba` and configures UFW firewall rules.
 - Prompts for unprivileged Proxmox LXC container mapping (`chown -R 100000:100000` & `chmod -R 775`).
 - Idempotently provisions `/mnt/storage` and appends `[storage]` share to `/etc/samba/smb.conf`.
 
-### 4. CIFS Storage Mount Client (`bin/deb/samba-cli.sh`)
+### 5. CIFS Storage Mount Client (`bin/deb/samba-cli.sh`)
 Mounts remote CIFS shares on client nodes:
 - Prompts for SMB IP, share name, mount point, username, and password.
 - Stores credentials securely in `/etc/cifs-credentials` (`chmod 600`).
@@ -89,6 +82,9 @@ Mounts remote CIFS shares on client nodes:
 You can run any full provisioning module remotely via `curl`:
 
 ```bash
+# Human Device Interaction Suite (HDI)
+curl -fsSL https://raw.githubusercontent.com/notasandworm/install/dev/bin/deb/hdi.sh | bash
+
 # Developer Workstation & Tooling
 curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/dev.sh | bash
 
@@ -112,6 +108,7 @@ Clone the repository and execute locally:
 git clone https://github.com/notasandworm/install.git
 cd install
 
+./bin/deb/hdi.sh
 ./bin/deb/dev.sh
 ./bin/deb/hardening.sh
 ./bin/deb/samba-srv.sh
