@@ -1,6 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+get_local_ip() {
+    ip -4 route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+' || hostname -I 2>/dev/null | awk '{print $1}' || echo ""
+}
+
+get_tailscale_ip() {
+    if command -v tailscale &>/dev/null; then
+        tailscale ip -4 2>/dev/null || echo ""
+    else
+        echo ""
+    fi
+}
+
 echo "==> Hardening Server Baseline Security (Debian/Ubuntu)..."
 
 declare -a MODIFIED_PATHS=()
@@ -29,6 +41,9 @@ chmod 600 ~/.ssh/authorized_keys
 chown -R "$USER:$USER" ~/.ssh
 MODIFIED_PATHS+=("$HOME/.ssh permissions")
 
+LOCAL_IP="$(get_local_ip)"
+TS_IP="$(get_tailscale_ip)"
+
 echo ""
 echo "=========================================="
 echo "==> Server Hardening Complete"
@@ -46,6 +61,24 @@ done
 # 'sudo dpkg-reconfigure --priority=low unattended-upgrades', etc.).
 echo ""
 echo "Post-Install Action Required:"
+echo "  * Add your public SSH key to: ~/.ssh/authorized_keys"
+echo "  * (Optional) Edit SSH server config to harden authentication:"
+echo "      sudo nano /etc/ssh/sshd_config"
 echo "  * To configure automatic unattended-upgrades priority settings, run:"
 echo "      sudo dpkg-reconfigure --priority=low unattended-upgrades"
+
+echo ""
+echo "SSH Connection Verification & Network IPs:"
+if [ -n "$LOCAL_IP" ]; then
+    echo "  * Local LAN SSH:       ssh ${USER}@${LOCAL_IP}"
+else
+    echo "  * Local LAN SSH:       ssh ${USER}@<your-local-lan-ip>"
+fi
+
+if [ -n "$TS_IP" ]; then
+    echo "  * Tailscale SSH:       ssh ${USER}@${TS_IP}"
+elif command -v tailscale &>/dev/null; then
+    echo "  * Tailscale SSH:       Run 'sudo tailscale up' first to obtain Tailscale IP"
+fi
+
 

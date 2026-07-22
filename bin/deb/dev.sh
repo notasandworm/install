@@ -15,6 +15,18 @@ prompt_read() {
     eval "$target_var=\"\${input_val:-\$default_val}\""
 }
 
+get_local_ip() {
+    ip -4 route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+' || hostname -I 2>/dev/null | awk '{print $1}' || echo ""
+}
+
+get_tailscale_ip() {
+    if command -v tailscale &>/dev/null; then
+        tailscale ip -4 2>/dev/null || echo ""
+    else
+        echo ""
+    fi
+}
+
 echo "==> Setting up Developer Workstation (Debian/Ubuntu)..."
 
 declare -a MODIFIED_PATHS=()
@@ -230,7 +242,26 @@ echo "Post-Install Action Required:"
 if is_tool_selected "tailscale"; then
     echo "  * Tailscale installed! To authenticate and connect to your mesh network, run:"
     echo "      sudo tailscale up"
-else
-    echo "  (No manual service activation actions required)"
 fi
+echo "  * Add your public SSH key to: ~/.ssh/authorized_keys"
+echo "  * (Optional) Edit SSH server config to harden authentication:"
+echo "      sudo nano /etc/ssh/sshd_config"
+
+LOCAL_IP="$(get_local_ip)"
+TS_IP="$(get_tailscale_ip)"
+
+echo ""
+echo "SSH Connection Verification & Network IPs:"
+if [ -n "$LOCAL_IP" ]; then
+    echo "  * Local LAN SSH:       ssh ${USER}@${LOCAL_IP}"
+else
+    echo "  * Local LAN SSH:       ssh ${USER}@<your-local-lan-ip>"
+fi
+
+if [ -n "$TS_IP" ]; then
+    echo "  * Tailscale SSH:       ssh ${USER}@${TS_IP}"
+elif is_tool_selected "tailscale" || command -v tailscale &>/dev/null; then
+    echo "  * Tailscale SSH:       Run 'sudo tailscale up' first to obtain Tailscale IP"
+fi
+
 
