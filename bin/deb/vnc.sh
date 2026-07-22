@@ -63,6 +63,36 @@ echo "  I recommend using Cloudflare Tunnels (cloudflared) with Cloudflare Acces
 echo "  for secure, zero-trust remote browser access from anywhere."
 prompt_read "Install cloudflared via official Cloudflare GPG repository? [Y/n]: " INSTALL_CF_RESP "Y"
 
+# Package Necessity Review Table
+echo ""
+echo "================================================================================"
+echo "Packages & Services Overview:"
+echo "--------------------------------------------------------------------------------"
+echo "REQUIRED CORE DESKTOP COMPONENTS:"
+echo "  * xvfb       - Virtual X11 framebuffer in memory (runs GUI apps headless)"
+echo "  * x11-utils  - Window inspection & management tools (xwd, xwininfo)"
+echo "  * x11vnc     - VNC daemon converting X11 draw events to RFB protocol (127.0.0.1:5900)"
+echo "  * novnc      - HTML5 JavaScript web desktop UI assets (vnc.html / index.html)"
+echo "  * websockify - WebSockets-to-TCP proxy bridging web browser to VNC (127.0.0.1:6080)"
+echo ""
+echo "OPTIONAL TRANSPORT COMPONENTS:"
+if [[ "$INSTALL_CF_RESP" =~ ^[Yy]$ ]]; then
+    echo "  * cloudflared - Cloudflare Tunnel CLI for zero-trust remote access [SELECTED]"
+else
+    echo "  * cloudflared - Cloudflare Tunnel CLI [SKIPPED]"
+fi
+if [[ "$TS_SERVE_RESP" =~ ^[Yy]$ ]]; then
+    echo "  * tailscale   - Private WireGuard mesh network HTTPS proxying [SELECTED]"
+fi
+echo "================================================================================"
+echo ""
+prompt_read "Review and continue [Y/n]: " REVIEW_RESP "Y"
+
+if [[ ! "$REVIEW_RESP" =~ ^[Yy]$ ]]; then
+    echo "okay. bye. :("
+    exit 0
+fi
+
 echo ""
 prompt_read "Set VNC session password [default: vncpassword]: " VNC_PASS "vncpassword" "true"
 echo ""
