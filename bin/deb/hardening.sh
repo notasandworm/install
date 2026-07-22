@@ -97,7 +97,7 @@ fi
 # 5. vsec Installation (Server Security Dashboard CLI)
 if is_sec_selected "vsec" && ! command -v vsec &>/dev/null; then
     echo "==> Installing vsec..."
-    curl -fsSL https://raw.githubusercontent.com/notasandworm/vsec/main/install.sh | sudo bash
+    sudo curl -fsSL https://raw.githubusercontent.com/notasandworm/vsec/main/vsec -o /usr/local/bin/vsec && sudo chmod +x /usr/local/bin/vsec
     MODIFIED_PATHS+=("/usr/local/bin/vsec")
 fi
 
