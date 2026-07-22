@@ -2,8 +2,6 @@
 
 I built this modular post-installation repository to automate provisioning and baseline security setup across my Debian and Ubuntu workstations and servers.
 
-Repository: `https://github.com/notasandworm/install.git` (or `git@github.com:notasandworm/install.git`)
-
 ---
 
 ## Directory Structure
