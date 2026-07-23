@@ -88,7 +88,7 @@ ARCH_URL="https://geo.mirror.pkgbuild.com/images/latest/Arch-Linux-x86_64-basic.
 
 echo ""
 echo "Base Cloud Images Caching (~/.cache/qemu-test-images):"
-prompt_read "Pre-download baseline QCOW2 cloud images now? [y/N]: " DOWNLOAD_IMAGES_RESP "N"
+prompt_read "Pre-download baseline QCOW2 cloud images now? [Y/n]: " DOWNLOAD_IMAGES_RESP "Y"
 
 if [[ "$DOWNLOAD_IMAGES_RESP" =~ ^[Yy]$ ]]; then
     # 1. Debian 12 (Bookworm)

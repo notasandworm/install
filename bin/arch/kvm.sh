@@ -80,7 +80,7 @@ DEBIAN13_URL="https://cloud.debian.org/images/cloud/trixie/latest/debian-13-gene
 
 echo ""
 echo "Base Cloud Images Caching (~/.cache/qemu-test-images):"
-prompt_read "Pre-download baseline QCOW2 cloud images now? [y/N]: " DOWNLOAD_IMAGES_RESP "N"
+prompt_read "Pre-download baseline QCOW2 cloud images now? [Y/n]: " DOWNLOAD_IMAGES_RESP "Y"
 
 if [[ "$DOWNLOAD_IMAGES_RESP" =~ ^[Yy]$ ]]; then
     # 1. Arch Linux
