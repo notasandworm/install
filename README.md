@@ -8,6 +8,8 @@ I built this modular post-installation repository to automate provisioning, base
 
 You can run any full provisioning module remotely via `curl`:
 
+### Debian and Debian Derivatives
+
 ```bash
 # Secure Headless Desktop & noVNC Suite
 curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/vnc.sh | bash
@@ -24,14 +26,19 @@ curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/h
 # Samba Storage Server Host
 curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/samba-srv.sh | bash
 
-# QEMU / KVM Virtualization & AI Test Harness (Debian/Ubuntu)
+# QEMU / KVM Virtualization & Test Harness (Debian/Ubuntu)
 curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/kvm.sh | bash
-
-# QEMU / KVM Virtualization & AI Test Harness (Arch Linux)
-curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/arch/kvm.sh | bash
 
 # CIFS Mount Client
 curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/samba-cli.sh | bash
+```
+### Arch
+
+(sorry, more to come later.)
+
+```bash
+# QEMU / KVM Virtualization & Test Harness (Arch Linux)
+curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/arch/kvm.sh | bash
 ```
 
 ---
@@ -92,7 +99,7 @@ Mounts remote CIFS shares on client nodes:
 - Stores credentials securely in `/etc/cifs-credentials` (`chmod 600`).
 - Configures `/etc/fstab` for automatic network mounting (`_netdev,x-systemd.automount`).
 
-### 7. QEMU / KVM Virtualization & AI Test Harness (`bin/deb/kvm.sh` & `bin/qemu-vm`)
+### 7. QEMU / KVM Virtualization & Test Harness (`bin/deb/kvm.sh` & `bin/qemu-vm`)
 Provisions lightweight QEMU/KVM virtualization powered by `qemu-system-x86_64`:
 - **KVM & User Permissions**: Installs QEMU/KVM packages and adds user to `kvm` group for non-root hardware virtualization.
 - **Base Image Cache**: Pre-fetches Debian 12 (Bookworm), Debian 13 (Trixie), or Arch Linux cloud QCOW2 images in `~/.cache/qemu-test-images/`.

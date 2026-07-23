@@ -7,10 +7,10 @@ prompt_read() {
     local default_val="${3:-}"
     local input_val=""
 
-    if [ -t 0 ] && [ -c /dev/tty ]; then
+    if [ -c /dev/tty ]; then
         read -r -p "$prompt_text" input_val < /dev/tty || input_val="$default_val"
     else
-        read -r -p "$prompt_text" input_val || input_val="$default_val"
+        input_val="$default_val"
     fi
     eval "$target_var=\"\${input_val:-\$default_val}\""
 }
