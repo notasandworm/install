@@ -175,18 +175,38 @@ if [[ "$INSTALL_CU_RESP" =~ ^[Yy]$ ]]; then
     MODIFIED_PATHS+=("$VENV_PATH (Python Virtualenv)")
 fi
 
-# Enable and start ydotool service if installed
+# Configure ydotool systemd service and permissions if installed
 if command -v ydotool &>/dev/null; then
-    if systemctl list-unit-files 2>/dev/null | grep -q ydotool.service; then
-        echo "==> Enabling and starting ydotool systemd service..."
-        sudo systemctl enable --now ydotool 2>/dev/null || true
-    fi
+    echo "==> Configuring ydotool systemd service..."
+    sudo tee /etc/systemd/system/ydotool.service > /dev/null << 'EOF'
+[Unit]
+Description=ydotool automation daemon
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ydotoold --socket-path=/tmp/.ydotool_socket --socket-own=nobody:input --socket-perm=0660
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    MODIFIED_PATHS+=("/etc/systemd/system/ydotool.service")
+
+    # Add the local user to the input group to access the socket
+    sudo usermod -aG input "${REAL_USER}" || true
+
+    echo "==> Enabling and starting ydotool service..."
+    sudo systemctl daemon-reload
+    sudo systemctl enable --now ydotool 2>/dev/null || true
 fi
 
 # Copy Computer Use Recipes manual to the consumer's home folder
 if [[ "$COPY_RECIPES_RESP" =~ ^[Yy]$ ]]; then
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    SRC_RECIPES="$SCRIPT_DIR/../../docs/computer_use_recipes.md"
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd 2>/dev/null || pwd)"
+    SRC_RECIPES="${SCRIPT_DIR}/../../docs/computer_use_recipes.md"
     DEST_RECIPES="$REAL_HOME/computer_use_recipes.md"
     if [ -f "$SRC_RECIPES" ]; then
         echo "==> Copying Computer Use Recipes to $DEST_RECIPES..."
@@ -234,7 +254,7 @@ if command -v supervisor &>/dev/null; then
     echo "  * Supervisor process manager installed! Check configuration in /etc/supervisor/supervisord.conf"
 fi
 if command -v ydotool &>/dev/null; then
-    echo "  * ydotool installed! Ensure ydotoold daemon is running for uinput events."
+    echo "  * ydotool service is active! Run it without sudo: export YDOTOOL_SOCKET=/tmp/.ydotool_socket && ydotool click 1"
 fi
 if [ -d "$REAL_HOME/.computer-use-venv" ]; then
     echo "  * Python Virtualenv created! Activate it: source ~/.computer-use-venv/bin/activate"
