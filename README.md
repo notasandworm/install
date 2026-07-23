@@ -121,5 +121,33 @@ git clone https://github.com/notasandworm/install.git
 cd install
 
 ./bin/deb/kvm.sh
-./bin/qemu-vm run --os debian12 --script bin/deb/dev.sh
+./bin/qemu-vm run --os debian12 --script bin/deb/dev.sh --args "-y"
 ```
+
+---
+
+## Automated Verification & Testing
+
+The repository includes a suite of test scripts under `tests/` to validate changes:
+
+### 1. Syntax & Remote Reachability Check
+Performs a `bash -n` syntax check on all scripts and validates that cloud image mirrors are online:
+```bash
+./tests/verify_harness.sh
+```
+
+### 2. Ephemeral Guest VM Integration Runner
+Spins up a headless KVM VM using `qemu-vm` and executes target installation scripts end-to-end to verify installation success:
+* **Test local file in guest VM (Recommended for development)**:
+  ```bash
+  ./tests/verify_vm_runs.sh --module dev --mode local
+  ```
+* **Test remote branch URL in guest VM (Uses target branch raw CDN URL)**:
+  ```bash
+  ./tests/verify_vm_runs.sh --module dev --mode remote --branch feat-ability-qemu
+  ```
+* **Test all modules sequentially**:
+  ```bash
+  ./tests/verify_vm_runs.sh --all --mode local
+  ```
+
