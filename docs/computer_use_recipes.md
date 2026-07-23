@@ -15,6 +15,21 @@ This reference manual provides practical instructions, scripts, and best practic
 
 ---
 
+## Table of Contents
+1. [System Requirements & Tooling Overview](#1-system-requirements--tooling-overview)
+2. [Python Virtual Environment Setup](#2-python-virtual-environment-setup)
+3. [Practical Command Recipes](#3-practical-command-recipes)
+   - [Recipe 1: Precise Screen Capture (`maim`)](#recipe-1-precise-screen-capture)
+   - [Recipe 2: Window Inspection & Geometry Queries (`wmctrl`)](#recipe-2-window-inspection--geometry-queries)
+   - [Recipe 3: X11 Clipboard Synchronizer (`xclip`)](#recipe-3-x11-clipboard-synchronizer)
+   - [Recipe 4: Python Visual Template Clicker (`pyautogui` + `mss`)](#recipe-4-python-visual-template-clicker)
+   - [Recipe 5: Automated Video Recording (`ffmpeg`)](#recipe-5-automated-video-recording)
+   - [Recipe 6: Python Screen OCR Extraction (`pytesseract`)](#recipe-6-python-screen-ocr-extraction)
+   - [Recipe 7: Browser Selector Automation (`playwright`)](#recipe-7-browser-selector-automation)
+4. [Architectural Best Practices for AI Agents](#4-architectural-best-practices-for-ai-agents)
+
+---
+
 ## 1. System Requirements & Tooling Overview
 
 An efficient AI agent or developer workstation requires a combination of display server control, keyboard/mouse input simulators, clipboard managers, and screenshot utilities.
@@ -48,6 +63,8 @@ source ~/.computer-use-venv/bin/activate
 * **`pyautogui`**: High-level cross-platform GUI automation library for mouse/keyboard inputs.
 * **`pillow` (PIL)**: High-performance image processing library for crop/diff assertions.
 * **`opencv-python-headless`**: Lightweight computer vision engine. Required to allow PyAutoGUI to support template search matching with confidence thresholds (`confidence=0.9`).
+* **`pytesseract`**: Python wrapper for Google's Tesseract-OCR engine for local visual text extraction.
+* **`playwright`**: High-level browser automation framework for selector-based web interactions.
 
 ---
 
@@ -166,6 +183,58 @@ ffmpeg -y -f x11grab -video_size 1280x1024 -i :99 -codec:v libx264 -r 15 ~/run_r
 
 # Record in the background for a fixed duration of 10 seconds
 ffmpeg -y -f x11grab -video_size 1280x1024 -i :99 -codec:v libx264 -r 15 -t 10 ~/headless_test.mp4
+```
+
+---
+
+### Recipe 6: Python Screen OCR Extraction
+Extract text from captured screen regions or screenshots using `pytesseract`.
+
+```python
+import pytesseract
+from PIL import Image
+
+def extract_screen_text(image_path):
+    """
+    Parses text content from a screenshot or cropped image region.
+    """
+    img = Image.open(image_path)
+    extracted_text = pytesseract.image_to_string(img)
+    return extracted_text
+
+if __name__ == "__main__":
+    text = extract_screen_text("/tmp/current_screen.png")
+    print(f"--- Extracted Screen Text ---\n{text}")
+```
+
+---
+
+### Recipe 7: Browser Selector Automation
+Use `playwright` for element selector-based web interactions without coordinate reliance.
+
+```python
+from playwright.sync_api import sync_playwright
+
+def automate_web_login():
+    """
+    Navigates to web interface and fills input fields by DOM selectors.
+    """
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto("http://localhost:6080")
+        
+        # Interact using CSS / DOM selectors
+        page.fill("input[name='username']", "admin")
+        page.fill("input[name='password']", "vncpassword")
+        page.click("button[type='submit']")
+        
+        # Capture verification screenshot
+        page.screenshot(path="login_result.png")
+        browser.close()
+
+if __name__ == "__main__":
+    automate_web_login()
 ```
 
 ---

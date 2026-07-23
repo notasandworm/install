@@ -165,8 +165,8 @@ if [[ "$INSTALL_CU_RESP" =~ ^[Yy]$ ]]; then
     echo "==> Setting up Python virtual environment for computer use at $VENV_PATH..."
     python3 -m venv "$VENV_PATH"
     "$VENV_PATH/bin/pip" install --upgrade pip >/dev/null 2>&1 || true
-    echo "==> Installing Python GUI libraries (mss, pyautogui, pillow, opencv-python-headless)..."
-    "$VENV_PATH/bin/pip" install mss pyautogui pillow opencv-python-headless >/dev/null 2>&1 || true
+    echo "==> Installing Python GUI & Automation libraries (mss, pyautogui, pillow, opencv-python-headless, pytesseract, playwright)..."
+    "$VENV_PATH/bin/pip" install mss pyautogui pillow opencv-python-headless pytesseract playwright >/dev/null 2>&1 || true
     
     if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
         chown -R "$SUDO_USER:$SUDO_USER" "$VENV_PATH" 2>/dev/null || true
