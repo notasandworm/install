@@ -80,7 +80,7 @@ alias la="eza -alog --git --icons=always --colour=always"
 alias ll="eza -log --git --icons=always --colour=always"
 alias bat="batcat"
 
-eval "$(zoxide init --cmd cd zsh)"
+eval "$(zoxide init --cmd z zsh)"
 eval "$(starship init zsh)"
 
 # ==============================================================================

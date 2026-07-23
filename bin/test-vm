@@ -1,0 +1,296 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ==============================================================================
+# Ephemeral QEMU/KVM Test Harness for Post-Install Scripts & AI Agents
+# ==============================================================================
+
+CACHE_DIR="${HOME}/.cache/qemu-test-images"
+DEFAULT_OS="debian12"
+DEFAULT_RAM="2048"
+DEFAULT_CPUS="2"
+DEFAULT_PORT="2222"
+
+usage() {
+    cat <<EOF
+Usage: test-vm <command> [options]
+
+Commands:
+  run          Run a script inside a fresh ephemeral VM and exit
+  interactive  Spin up a clean VM and open an interactive SSH shell
+  clean        Remove cached cloud images and temporary files
+
+Options for 'run' and 'interactive':
+  --os <distro>    Target OS distro: debian12 (default), debian13, arch
+  --script <file>  Path to local bash script to copy & execute inside VM
+  --url <url>      Remote curl URL to execute inside VM (e.g. curl ... | bash)
+  --ram <mb>       Memory allocation in MB (default: 2048)
+  --cpus <count>   vCPU count (default: 2)
+  --port <port>    Host forwarded SSH port (default: 2222)
+  -h, --help       Show this help message
+
+Examples:
+  test-vm run --os debian12 --script bin/deb/dev.sh
+  test-vm run --os debian13 --script bin/deb/hdi.sh
+  test-vm run --os arch --url https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/vnc.sh
+  test-vm interactive --os debian12
+EOF
+    exit 0
+}
+
+if [ $# -lt 1 ]; then
+    usage
+fi
+
+COMMAND="$1"
+if [ "$COMMAND" = "-h" ] || [ "$COMMAND" = "--help" ]; then
+    usage
+fi
+shift
+
+OS="$DEFAULT_OS"
+SCRIPT_PATH=""
+URL_PATH=""
+RAM="$DEFAULT_RAM"
+CPUS="$DEFAULT_CPUS"
+SSH_PORT="$DEFAULT_PORT"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --os)
+            OS="$2"
+            shift 2
+            ;;
+        --script)
+            SCRIPT_PATH="$2"
+            shift 2
+            ;;
+        --url)
+            URL_PATH="$2"
+            shift 2
+            ;;
+        --ram)
+            RAM="$2"
+            shift 2
+            ;;
+        --cpus)
+            CPUS="$2"
+            shift 2
+            ;;
+        --port)
+            SSH_PORT="$2"
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            ;;
+        *)
+            echo "Unknown argument: $1"
+            usage
+            ;;
+    esac
+done
+
+if [ "$COMMAND" = "clean" ]; then
+    echo "==> Cleaning cached images in $CACHE_DIR..."
+    rm -rf "$CACHE_DIR"
+    echo "✅ Cache cleared."
+    exit 0
+fi
+
+if [ "$COMMAND" != "run" ] && [ "$COMMAND" != "interactive" ]; then
+    echo "Error: Unknown command '$COMMAND'"
+    usage
+fi
+
+# Ensure QEMU tools are available
+if ! command -v qemu-system-x86_64 &>/dev/null; then
+    echo "Error: qemu-system-x86_64 is not installed. Please run bin/deb/kvm.sh or bin/arch/kvm.sh first."
+    exit 1
+fi
+
+if ! command -v qemu-img &>/dev/null; then
+    echo "Error: qemu-img is not installed."
+    exit 1
+fi
+
+mkdir -p "$CACHE_DIR"
+
+# Map OS choice to Image File & Download URL
+case "$OS" in
+    debian12|debian|bookworm)
+        BASE_IMAGE_NAME="debian-12-generic-amd64.qcow2"
+        IMAGE_URL="https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2"
+        ;;
+    debian13|trixie)
+        BASE_IMAGE_NAME="debian-13-generic-amd64.qcow2"
+        IMAGE_URL="https://cloud.debian.org/images/cloud/trixie/daily/latest/debian-13-generic-amd64.qcow2"
+        ;;
+    arch|archlinux)
+        BASE_IMAGE_NAME="arch-linux-x86_64-basic.qcow2"
+        IMAGE_URL="https://geo.mirror.pkgbuild.com/images/latest/Arch-Linux-x86_64-basic.qcow2"
+        ;;
+    *)
+        echo "Error: Unsupported OS target '$OS'. Supported: debian12, debian13, arch"
+        exit 1
+        ;;
+esac
+
+BASE_IMAGE_PATH="$CACHE_DIR/$BASE_IMAGE_NAME"
+
+# Fetch Base Image if not cached
+if [ ! -f "$BASE_IMAGE_PATH" ]; then
+    echo "==> Downloading base cloud image for '$OS'..."
+    wget -q --show-progress -O "$BASE_IMAGE_PATH" "$IMAGE_URL" || {
+        echo "Error: Failed to download base image from $IMAGE_URL"
+        rm -f "$BASE_IMAGE_PATH"
+        exit 1
+    }
+fi
+
+# Setup Temporary Workspace for Ephemeral VM Run
+TMP_DIR="$(mktemp -d /tmp/qemu-test-XXXXXX)"
+QEMU_PID_FILE="$TMP_DIR/qemu.pid"
+
+cleanup() {
+    if [ -f "$QEMU_PID_FILE" ]; then
+        PID="$(cat "$QEMU_PID_FILE" 2>/dev/null || echo "")"
+        if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
+            echo ""
+            echo "==> Terminating ephemeral QEMU process (PID: $PID)..."
+            kill "$PID" 2>/dev/null || true
+            sleep 1
+            if kill -0 "$PID" 2>/dev/null; then
+                kill -9 "$PID" 2>/dev/null || true
+            fi
+        fi
+    fi
+    rm -rf "$TMP_DIR"
+}
+trap cleanup EXIT
+
+# 1. Create Instant Copy-on-Write (CoW) Overlay (< 10ms)
+OVERLAY_IMAGE="$TMP_DIR/overlay.qcow2"
+echo "==> Creating 20GB Copy-on-Write overlay..."
+qemu-img create -f qcow2 -b "$BASE_IMAGE_PATH" -F qcow2 "$OVERLAY_IMAGE" 20G >/dev/null
+
+# 2. Setup SSH Keypair & Cloud-Init Seed ISO
+SSH_KEY="$TMP_DIR/id_ed25519"
+ssh-keygen -t ed25519 -N "" -f "$SSH_KEY" >/dev/null 2>&1
+PUB_KEY="$(cat "${SSH_KEY}.pub")"
+
+cat <<EOF > "$TMP_DIR/user-data"
+#cloud-config
+users:
+  - name: testuser
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - $PUB_KEY
+ssh_pwauth: true
+chpasswd:
+  list: |
+    testuser:testpass
+  expire: false
+runcmd:
+  - [ systemctl, start, sshd ]
+  - [ systemctl, start, ssh ]
+EOF
+
+cat <<EOF > "$TMP_DIR/meta-data"
+instance-id: test-vm-$(date +%s)
+local-hostname: test-vm
+EOF
+
+SEED_ISO="$TMP_DIR/seed.iso"
+if command -v cloud-localds &>/dev/null; then
+    cloud-localds "$SEED_ISO" "$TMP_DIR/user-data" "$TMP_DIR/meta-data" >/dev/null 2>&1
+elif command -v genisoimage &>/dev/null; then
+    genisoimage -output "$SEED_ISO" -volid cidata -joliet -rock "$TMP_DIR/user-data" "$TMP_DIR/meta-data" >/dev/null 2>&1
+elif command -v mkisofs &>/dev/null; then
+    mkisofs -output "$SEED_ISO" -volid cidata -joliet -rock "$TMP_DIR/user-data" "$TMP_DIR/meta-data" >/dev/null 2>&1
+else
+    echo "Error: Neither cloud-localds, genisoimage, nor mkisofs is installed."
+    exit 1
+fi
+
+# 3. Detect KVM Hardware Acceleration
+ACCEL_FLAGS=""
+if [ -c /dev/kvm ] && [ -w /dev/kvm ]; then
+    ACCEL_FLAGS="-enable-kvm -cpu host"
+elif [ -c /dev/kvm ]; then
+    ACCEL_FLAGS="-enable-kvm -cpu host"
+else
+    ACCEL_FLAGS="-cpu qemu64"
+fi
+
+# 4. Launch QEMU Process Headlessly
+echo "==> Spawning QEMU/KVM instance (OS: $OS, RAM: ${RAM}MB, Port: $SSH_PORT)..."
+qemu-system-x86_64 \
+    $ACCEL_FLAGS \
+    -m "$RAM" \
+    -smp "$CPUS" \
+    -drive file="$OVERLAY_IMAGE",format=qcow2,if=virtio \
+    -drive file="$SEED_ISO",format=raw,if=virtio \
+    -netdev user,id=n1,hostfwd=tcp::${SSH_PORT}-:22 \
+    -device virtio-net-pci,netdev=n1 \
+    -nographic \
+    -pidfile "$QEMU_PID_FILE" > "$TMP_DIR/qemu.log" 2>&1 &
+
+SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=2 -o LogLevel=QUIET -i $SSH_KEY -p $SSH_PORT"
+
+# 5. Poll SSH Port Readiness
+echo "==> Waiting for VM boot & SSH readiness..."
+MAX_WAIT=45
+WAIT_COUNT=0
+READY=0
+
+while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
+    if ssh $SSH_OPTS testuser@127.0.0.1 "echo ready" 2>/dev/null | grep -q "ready"; then
+        READY=1
+        break
+    fi
+    sleep 1
+    WAIT_COUNT=$((WAIT_COUNT + 1))
+done
+
+if [ $READY -eq 0 ]; then
+    echo "❌ Error: VM failed to reach SSH ready state within ${MAX_WAIT}s."
+    echo "QEMU Console Log:"
+    cat "$TMP_DIR/qemu.log" | tail -n 20
+    exit 1
+fi
+
+echo "✅ VM is online and SSH is ready!"
+
+# 6. Command Execution or Interactive Mode
+if [ "$COMMAND" = "interactive" ]; then
+    echo "==> Entering interactive SSH shell (Type 'exit' to tear down VM)..."
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "$SSH_KEY" -p "$SSH_PORT" testuser@127.0.0.1
+elif [ "$COMMAND" = "run" ]; then
+    if [ -n "$SCRIPT_PATH" ]; then
+        if [ ! -f "$SCRIPT_PATH" ]; then
+            echo "Error: Local script file '$SCRIPT_PATH' not found."
+            exit 1
+        fi
+        echo "==> Transferring local script '$SCRIPT_PATH' to VM..."
+        scp -q $SSH_OPTS "$SCRIPT_PATH" testuser@127.0.0.1:/tmp/test-script.sh
+        echo "==> Executing script inside VM..."
+        echo "------------------------------------------------------------------------------"
+        ssh $SSH_OPTS testuser@127.0.0.1 "chmod +x /tmp/test-script.sh && bash /tmp/test-script.sh"
+        EXIT_CODE=$?
+        echo "------------------------------------------------------------------------------"
+        echo "==> Script finished with exit code $EXIT_CODE"
+        exit $EXIT_CODE
+    elif [ -n "$URL_PATH" ]; then
+        echo "==> Executing remote URL script '$URL_PATH' inside VM..."
+        echo "------------------------------------------------------------------------------"
+        ssh $SSH_OPTS testuser@127.0.0.1 "curl -fsSL '$URL_PATH' | bash"
+        EXIT_CODE=$?
+        echo "------------------------------------------------------------------------------"
+        echo "==> Remote script finished with exit code $EXIT_CODE"
+        exit $EXIT_CODE
+    else
+        echo "Notice: No --script or --url specified. VM is booted and verified SSH ready."
+    fi
+fi

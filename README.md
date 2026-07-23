@@ -24,6 +24,12 @@ curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/h
 # Samba Storage Server Host
 curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/samba-srv.sh | bash
 
+# QEMU / KVM Virtualization & AI Test Harness (Debian/Ubuntu)
+curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/kvm.sh | bash
+
+# QEMU / KVM Virtualization & AI Test Harness (Arch Linux)
+curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/arch/kvm.sh | bash
+
 # CIFS Mount Client
 curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/samba-cli.sh | bash
 ```
@@ -86,6 +92,17 @@ Mounts remote CIFS shares on client nodes:
 - Stores credentials securely in `/etc/cifs-credentials` (`chmod 600`).
 - Configures `/etc/fstab` for automatic network mounting (`_netdev,x-systemd.automount`).
 
+### 7. QEMU / KVM Virtualization & AI Test Harness (`bin/deb/kvm.sh` & `bin/test-vm`)
+Provisions lightweight QEMU/KVM virtualization and instant testing harness:
+- **KVM & User Permissions**: Installs QEMU/KVM packages and adds user to `kvm` group for non-root hardware virtualization.
+- **Base Image Cache**: Pre-fetches Debian 12 (Bookworm), Debian 13 (Trixie), or Arch Linux cloud QCOW2 images in `~/.cache/qemu-test-images/`.
+- **Ephemeral VM Testing Harness (`test-vm`)**: Spins up clean KVM instances in 2-4 seconds using Copy-on-Write (CoW) overlays for testing post-install scripts:
+  ```bash
+  test-vm run --os debian12 --script bin/deb/dev.sh
+  test-vm run --os debian13 --script bin/deb/hdi.sh
+  test-vm run --os arch --url https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/vnc.sh
+  ```
+
 ---
 
 ## Local Execution
@@ -96,10 +113,6 @@ Clone the repository and execute locally:
 git clone https://github.com/notasandworm/install.git
 cd install
 
-./bin/deb/vnc.sh
-./bin/deb/hdi.sh
-./bin/deb/dev.sh
-./bin/deb/hardening.sh
-./bin/deb/samba-srv.sh
-./bin/deb/samba-cli.sh
+./bin/deb/kvm.sh
+./bin/test-vm run --os debian12 --script bin/deb/dev.sh
 ```
