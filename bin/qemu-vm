@@ -55,6 +55,7 @@ shift
 OS="$DEFAULT_OS"
 SCRIPT_PATH=""
 URL_PATH=""
+SCRIPT_ARGS=""
 RAM="$DEFAULT_RAM"
 CPUS="$DEFAULT_CPUS"
 SSH_PORT="$DEFAULT_PORT"
@@ -71,6 +72,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --url)
             URL_PATH="$2"
+            shift 2
+            ;;
+        --args)
+            SCRIPT_ARGS="$2"
             shift 2
             ;;
         --ram)
@@ -281,7 +286,7 @@ elif [ "$COMMAND" = "run" ]; then
         scp -q $SSH_OPTS "$SCRIPT_PATH" testuser@127.0.0.1:/tmp/test-script.sh
         echo "==> Executing script inside VM..."
         echo "------------------------------------------------------------------------------"
-        ssh $SSH_OPTS testuser@127.0.0.1 "chmod +x /tmp/test-script.sh && bash /tmp/test-script.sh"
+        ssh $SSH_OPTS testuser@127.0.0.1 "chmod +x /tmp/test-script.sh && bash /tmp/test-script.sh $SCRIPT_ARGS"
         EXIT_CODE=$?
         echo "------------------------------------------------------------------------------"
         echo "==> Script finished with exit code $EXIT_CODE"
@@ -289,7 +294,7 @@ elif [ "$COMMAND" = "run" ]; then
     elif [ -n "$URL_PATH" ]; then
         echo "==> Executing remote URL script '$URL_PATH' inside VM..."
         echo "------------------------------------------------------------------------------"
-        ssh $SSH_OPTS testuser@127.0.0.1 "curl -fsSL '$URL_PATH' | bash"
+        ssh $SSH_OPTS testuser@127.0.0.1 "curl -fsSL '$URL_PATH' | bash -s -- $SCRIPT_ARGS"
         EXIT_CODE=$?
         echo "------------------------------------------------------------------------------"
         echo "==> Remote script finished with exit code $EXIT_CODE"
