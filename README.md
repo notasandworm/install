@@ -10,10 +10,10 @@ You can run any full provisioning module remotely via `curl`:
 
 ```bash
 # Secure Headless Desktop & noVNC Suite
-curl -fsSL https://raw.githubusercontent.com/notasandworm/install/dev/bin/deb/vnc.sh | bash
+curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/vnc.sh | bash
 
 # Human Device Interaction Suite (HDI)
-curl -fsSL https://raw.githubusercontent.com/notasandworm/install/dev/bin/deb/hdi.sh | bash
+curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/hdi.sh | bash
 
 # Developer Workstation & Tooling
 curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/dev.sh | bash
