@@ -43,11 +43,11 @@ echo "--- 3. Cloud Image Mirror Reachability (HTTP 200/302) ---"
 check_url() {
     local url="$1"
     local status
-    status=$(curl -sIL -m 10 -w "%{http_code}\n" -o /dev/null "$url" 2>/dev/null | tail -n 1 || echo "000")
-    if [ "$status" = "200" ] || [ "$status" = "302" ]; then
+    status=$(curl -sI -m 10 "$url" 2>/dev/null | grep -i "^HTTP" | tail -n 1 | awk '{print $2}')
+    if [ "$status" = "200" ] || [ "$status" = "301" ] || [ "$status" = "302" ]; then
         return 0
     else
-        echo "(HTTP $status) "
+        echo "(HTTP ${status:-000}) "
         return 1
     fi
 }
