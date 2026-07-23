@@ -55,7 +55,7 @@ SELECTED_PKGS=()
 
 # Toolkit 1: Autonomous Computer Use (GUI & Web Navigation)
 COMPUTER_USE_PKGS=(
-    xvfb x11-utils x11vnc wmctrl
+    xvfb x11-utils x11vnc wmctrl ffmpeg
     xdotool xclip wl-clipboard
     maim scrot imagemagick tesseract-ocr
     chromium firefox-esr
@@ -119,6 +119,9 @@ if [[ "$INSTALL_WD_RESP" =~ ^[Yy]$ ]]; then
     INSTALLED_TOOLKITS+=("Automated Web Dev Frontend")
 fi
 
+echo ""
+prompt_read "Copy Computer Use Recipes manual to your home folder? [Y/n]: " COPY_RECIPES_RESP "Y"
+
 # ==============================================================================
 # INSTALLATION & PROVISIONING PHASE (RUNS AFTER ALL PROMPTS ARE COMPLETE)
 # ==============================================================================
@@ -141,11 +144,56 @@ if [ ${#SELECTED_PKGS[@]} -gt 0 ]; then
     sudo apt update && sudo apt install -y "${UNIQUE_PKGS[@]}"
 fi
 
+# Determine the real user and home directory running the script
+REAL_USER="$USER"
+REAL_HOME="$HOME"
+if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+    REAL_USER="$SUDO_USER"
+    REAL_HOME="$(eval echo "~$SUDO_USER")"
+fi
+
 # Symlinks & Utilities
-mkdir -p "$HOME/.local/bin"
-if command -v fdfind &>/dev/null && [ ! -f "$HOME/.local/bin/fd" ]; then
-    ln -s "$(which fdfind)" "$HOME/.local/bin/fd"
-    MODIFIED_PATHS+=("$HOME/.local/bin/fd (symlink -> fdfind)")
+mkdir -p "$REAL_HOME/.local/bin"
+if command -v fdfind &>/dev/null && [ ! -f "$REAL_HOME/.local/bin/fd" ]; then
+    ln -sf "$(which fdfind)" "$REAL_HOME/.local/bin/fd"
+    MODIFIED_PATHS+=("$REAL_HOME/.local/bin/fd (symlink -> fdfind)")
+fi
+
+# Python virtual environment setup for Computer Use
+if [[ "$INSTALL_CU_RESP" =~ ^[Yy]$ ]]; then
+    VENV_PATH="$REAL_HOME/.computer-use-venv"
+    echo "==> Setting up Python virtual environment for computer use at $VENV_PATH..."
+    python3 -m venv "$VENV_PATH"
+    "$VENV_PATH/bin/pip" install --upgrade pip >/dev/null 2>&1 || true
+    echo "==> Installing Python GUI libraries (mss, pyautogui, pillow, opencv-python-headless)..."
+    "$VENV_PATH/bin/pip" install mss pyautogui pillow opencv-python-headless >/dev/null 2>&1 || true
+    
+    if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+        chown -R "$SUDO_USER:$SUDO_USER" "$VENV_PATH" 2>/dev/null || true
+        chown -R "$SUDO_USER:$SUDO_USER" "$REAL_HOME/.local" 2>/dev/null || true
+    fi
+    MODIFIED_PATHS+=("$VENV_PATH (Python Virtualenv)")
+fi
+
+# Enable and start ydotool service if installed
+if command -v ydotool &>/dev/null; then
+    if systemctl list-unit-files 2>/dev/null | grep -q ydotool.service; then
+        echo "==> Enabling and starting ydotool systemd service..."
+        sudo systemctl enable --now ydotool 2>/dev/null || true
+    fi
+fi
+
+# Copy Computer Use Recipes manual to the consumer's home folder
+if [[ "$COPY_RECIPES_RESP" =~ ^[Yy]$ ]]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    SRC_RECIPES="$SCRIPT_DIR/../../docs/computer_use_recipes.md"
+    DEST_RECIPES="$REAL_HOME/computer_use_recipes.md"
+    if [ -f "$SRC_RECIPES" ]; then
+        echo "==> Copying Computer Use Recipes to $DEST_RECIPES..."
+        cp "$SRC_RECIPES" "$DEST_RECIPES"
+        [ -n "${SUDO_USER:-}" ] && chown "$SUDO_USER:$SUDO_USER" "$DEST_RECIPES" 2>/dev/null || true
+        MODIFIED_PATHS+=("$DEST_RECIPES")
+    fi
 fi
 
 LOCAL_IP="$(get_local_ip)"
@@ -187,6 +235,9 @@ if command -v supervisor &>/dev/null; then
 fi
 if command -v ydotool &>/dev/null; then
     echo "  * ydotool installed! Ensure ydotoold daemon is running for uinput events."
+fi
+if [ -d "$REAL_HOME/.computer-use-venv" ]; then
+    echo "  * Python Virtualenv created! Activate it: source ~/.computer-use-venv/bin/activate"
 fi
 if [ ${#INSTALLED_TOOLKITS[@]} -eq 0 ]; then
     echo "  (No manual service activation actions required)"
