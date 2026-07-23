@@ -89,7 +89,24 @@ is_tool_selected() {
     return 1
 }
 
+is_pkg_selected() {
+    local target="$1"
+    for p in "${SELECTED_PKGS[@]}"; do
+        [ "$p" = "$target" ] && return 0
+    done
+    return 1
+}
+
 if [ ${#SELECTED_PKGS[@]} -gt 0 ]; then
+    echo "==> Configuring package repositories..."
+    if is_pkg_selected "eza" && ! apt-cache show eza &>/dev/null; then
+        echo "==> Configuring eza community repository..."
+        sudo mkdir -p /etc/apt/keyrings
+        sudo wget -qO- https://raw.githubusercontent.com/eza-community/eza/main/deb.asc | sudo gpg --dearmor --yes -o /etc/apt/keyrings/gierens.gpg
+        echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main" | sudo tee /etc/apt/sources.list.d/gierens.list
+        sudo chmod 644 /etc/apt/keyrings/gierens.gpg /etc/apt/sources.list.d/gierens.list
+    fi
+
     echo "==> Installing selected APT packages..."
     sudo apt update && sudo apt install -y "${SELECTED_PKGS[@]}"
 fi
