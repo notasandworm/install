@@ -1,13 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Check for non-interactive flags
+ASSUME_YES=false
+for arg in "$@"; do
+    if [ "$arg" = "-y" ] || [ "$arg" = "--yes" ]; then
+        ASSUME_YES=true
+    fi
+done
+
 prompt_read() {
     local prompt_text="$1"
     local target_var="$2"
     local default_val="${3:-}"
     local input_val=""
 
-    if [ -c /dev/tty ]; then
+    if [ "${ASSUME_YES:-false}" = "true" ] || [ "${NONINTERACTIVE:-false}" = "1" ]; then
+        input_val="$default_val"
+    elif [ -c /dev/tty ]; then
         read -r -p "$prompt_text" input_val < /dev/tty || input_val="$default_val"
     else
         input_val="$default_val"
