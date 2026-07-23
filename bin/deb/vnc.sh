@@ -73,6 +73,14 @@ echo "  I recommend using Cloudflare Tunnels (cloudflared) with Cloudflare Acces
 echo "  for secure, zero-trust remote browser access from anywhere."
 prompt_read "Install cloudflared via official Cloudflare GPG repository? [Y/n]: " INSTALL_CF_RESP "Y"
 
+echo ""
+echo "Lightweight Desktop Environment:"
+prompt_read "Install lightweight XFCE4 desktop environment? (Recommended if not already installed) [Y/n]: " INSTALL_XFCE_RESP "Y"
+
+echo ""
+echo "Background Process Manager (Systemd):"
+prompt_read "Enable and start noVNC systemd background service? [Y/n]: " START_SERVICE_RESP "Y"
+
 # Package Necessity Review Table
 echo ""
 echo "================================================================================"
@@ -84,8 +92,13 @@ echo "  * x11-utils  - Window inspection & management tools (xwd, xwininfo)"
 echo "  * x11vnc     - VNC daemon converting X11 draw events to RFB protocol (127.0.0.1:5900)"
 echo "  * novnc      - HTML5 JavaScript web desktop UI assets (vnc.html / index.html)"
 echo "  * websockify - WebSockets-to-TCP proxy bridging web browser to VNC (127.0.0.1:6080)"
+if [[ "$INSTALL_XFCE_RESP" =~ ^[Yy]$ ]]; then
+    echo "  * xfce4      - Lightweight desktop environment (for a full graphical GUI) [SELECTED]"
+else
+    echo "  * xfce4      - Lightweight desktop environment [SKIPPED]"
+fi
 echo ""
-echo "OPTIONAL TRANSPORT COMPONENTS:"
+echo "OPTIONAL TRANSPORT & SYSTEM COMPONENTS:"
 if [[ "$INSTALL_CF_RESP" =~ ^[Yy]$ ]]; then
     echo "  * cloudflared - Cloudflare Tunnel CLI for zero-trust remote access [SELECTED]"
 else
@@ -93,6 +106,11 @@ else
 fi
 if [[ "$TS_SERVE_RESP" =~ ^[Yy]$ ]]; then
     echo "  * tailscale   - Private WireGuard mesh network HTTPS proxying [SELECTED]"
+fi
+if [[ "$START_SERVICE_RESP" =~ ^[Yy]$ ]]; then
+    echo "  * systemd svc - Create and enable 'novnc' systemd background service [SELECTED]"
+else
+    echo "  * systemd svc - Create and enable 'novnc' systemd background service [SKIPPED]"
 fi
 echo "================================================================================"
 echo ""
@@ -114,6 +132,11 @@ echo ""
 APT_PKGS=(xvfb x11-utils x11vnc novnc websockify python3)
 INSTALLED_COMPONENTS+=("Headless Desktop & noVNC Web Suite")
 
+if [[ "$INSTALL_XFCE_RESP" =~ ^[Yy]$ ]]; then
+    APT_PKGS+=(xfce4 dbus-x11)
+    INSTALLED_COMPONENTS+=("XFCE4 Desktop Environment & DBus")
+fi
+
 if [[ "$INSTALL_CF_RESP" =~ ^[Yy]$ ]]; then
     echo "==> Adding official Cloudflare GPG keyring & APT repository..."
     sudo mkdir -p --mode=0755 /usr/share/keyrings
@@ -127,84 +150,24 @@ fi
 if [ ${#APT_PKGS[@]} -gt 0 ]; then
     readarray -t UNIQUE_PKGS < <(printf "%s\n" "${APT_PKGS[@]}" | sort -u)
     echo "==> Installing selected packages via APT..."
-    sudo apt update && sudo apt install -y "${UNIQUE_PKGS[@]}"
+    sudo apt update && sudo DEBIAN_FRONTEND=noninteractive apt install -y "${UNIQUE_PKGS[@]}"
 fi
 
 # VNC Password Setup (Executed AFTER apt installation of x11vnc & python3)
-VNC_DIR="$HOME/.vnc"
+REAL_USER="$USER"
+REAL_HOME="$HOME"
 if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
-    USER_HOME="$(eval echo "~$SUDO_USER")"
-    VNC_DIR="$USER_HOME/.vnc"
+    REAL_USER="$SUDO_USER"
+    REAL_HOME="$(eval echo "~$SUDO_USER")"
 fi
 
-mkdir -p "$VNC_DIR"
+VNC_DIR="$REAL_HOME/.vnc"
 VNC_PW_FILE="$VNC_DIR/passwd"
 
 echo "==> Generating VNC password file at $VNC_PW_FILE..."
-if command -v python3 &>/dev/null; then
-    VNC_PASS="$VNC_PASS" VNC_PW_FILE="$VNC_PW_FILE" python3 -c "
-import os, sys
-def create_vnc_passwd(password, filepath):
-    PI = [58, 50, 42, 34, 26, 18, 10, 2, 60, 52, 44, 36, 28, 20, 12, 4, 62, 54, 46, 38, 30, 22, 14, 6, 64, 56, 48, 40, 32, 24, 16, 8, 57, 49, 41, 33, 25, 17, 9, 1, 59, 51, 43, 35, 27, 19, 11, 3, 61, 53, 45, 37, 29, 21, 13, 5, 63, 55, 47, 39, 31, 23, 15, 7]
-    FP = [40, 8, 48, 16, 56, 24, 64, 32, 39, 7, 47, 15, 55, 23, 63, 31, 38, 6, 46, 14, 54, 22, 62, 30, 37, 5, 45, 13, 53, 21, 61, 29, 36, 4, 44, 12, 52, 20, 60, 28, 35, 3, 43, 11, 51, 19, 59, 27]
-    CP_1 = [57, 49, 41, 33, 25, 17, 9, 1, 58, 50, 42, 34, 26, 18, 10, 2, 59, 51, 43, 35, 27, 19, 11, 3, 60, 52, 44, 36, 63, 55, 47, 39, 31, 23, 15, 7, 62, 54, 46, 38, 30, 22, 14, 6, 61, 53, 45, 37, 29, 21, 13, 5, 28, 20, 12, 4]
-    CP_2 = [14, 17, 11, 24, 1, 5, 3, 28, 15, 6, 21, 10, 23, 19, 12, 4, 26, 8, 16, 7, 27, 20, 13, 2, 41, 52, 31, 37, 47, 55, 30, 40, 51, 45, 33, 48, 44, 49, 39, 56, 34, 53, 46, 42, 50, 36, 29, 32]
-    SHIFTS = [1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1]
-    E = [32, 1, 2, 3, 4, 5, 4, 5, 6, 7, 8, 9, 8, 9, 10, 11, 12, 13, 12, 13, 14, 15, 16, 17, 16, 17, 18, 19, 20, 21, 20, 21, 22, 23, 24, 25, 24, 25, 26, 27, 28, 29, 28, 29, 30, 31, 32, 1]
-    S = [
-        [[14, 4, 13, 1, 2, 15, 11, 8, 3, 10, 6, 12, 5, 9, 0, 7], [0, 15, 7, 4, 14, 2, 13, 1, 10, 6, 12, 11, 9, 5, 3, 8], [4, 1, 14, 8, 13, 6, 2, 11, 15, 12, 9, 7, 3, 10, 5, 0], [15, 12, 8, 2, 4, 9, 1, 7, 5, 11, 3, 14, 10, 0, 6, 13]],
-        [[15, 1, 8, 14, 6, 11, 3, 4, 9, 7, 2, 13, 12, 0, 5, 10], [3, 13, 4, 7, 15, 2, 8, 14, 12, 0, 1, 10, 6, 9, 11, 5], [0, 14, 7, 11, 10, 4, 13, 1, 5, 8, 12, 6, 9, 3, 2, 15], [13, 8, 10, 1, 3, 15, 4, 2, 11, 6, 7, 12, 0, 5, 14, 9]],
-        [[10, 0, 9, 14, 6, 3, 15, 5, 1, 13, 12, 7, 11, 4, 2, 8], [13, 7, 0, 9, 3, 4, 6, 10, 2, 8, 5, 14, 12, 11, 15, 1], [13, 6, 4, 9, 8, 15, 3, 0, 11, 1, 2, 12, 5, 10, 14, 7], [1, 10, 13, 0, 6, 9, 8, 7, 4, 15, 14, 3, 11, 5, 2, 12]],
-        [[7, 13, 14, 3, 0, 6, 9, 10, 1, 2, 8, 5, 11, 12, 4, 15], [13, 8, 11, 5, 6, 15, 0, 3, 4, 7, 2, 12, 1, 10, 14, 9], [10, 6, 9, 0, 12, 11, 7, 13, 15, 1, 3, 14, 5, 2, 8, 4], [3, 15, 0, 6, 10, 1, 13, 8, 9, 4, 5, 11, 12, 7, 2, 14]],
-        [[2, 12, 4, 1, 7, 10, 11, 6, 8, 5, 3, 15, 13, 0, 14, 9], [14, 11, 2, 12, 4, 7, 13, 1, 5, 0, 15, 10, 3, 9, 8, 6], [4, 2, 1, 11, 10, 13, 7, 8, 15, 9, 12, 5, 6, 3, 0, 14], [11, 8, 12, 7, 1, 14, 2, 13, 6, 15, 0, 9, 10, 4, 5, 3]],
-        [[12, 1, 10, 15, 9, 2, 6, 8, 0, 13, 3, 4, 14, 7, 5, 11], [10, 15, 4, 2, 7, 12, 9, 5, 6, 1, 13, 14, 0, 11, 3, 8], [9, 14, 15, 5, 2, 8, 12, 3, 7, 0, 4, 10, 1, 13, 11, 6], [4, 3, 2, 12, 9, 5, 15, 10, 11, 14, 1, 7, 6, 0, 8, 13]],
-        [[4, 11, 2, 14, 15, 0, 8, 13, 3, 12, 9, 7, 5, 10, 6, 1], [13, 0, 11, 7, 4, 9, 1, 10, 14, 3, 5, 12, 2, 15, 8, 6], [1, 4, 11, 13, 12, 3, 7, 14, 10, 15, 6, 8, 0, 5, 9, 2], [6, 11, 13, 8, 1, 4, 10, 7, 9, 5, 0, 15, 14, 2, 3, 12]],
-        [[13, 2, 8, 4, 6, 15, 11, 1, 10, 9, 3, 14, 5, 0, 12, 7], [1, 15, 13, 8, 10, 3, 7, 4, 12, 5, 6, 11, 0, 14, 9, 2], [7, 11, 4, 1, 9, 12, 14, 2, 0, 6, 10, 13, 15, 3, 5, 8], [2, 1, 14, 7, 4, 10, 8, 13, 15, 12, 9, 0, 3, 5, 6, 11]]
-    ]
-    P = [16, 7, 20, 21, 29, 12, 28, 17, 1, 15, 23, 26, 5, 18, 31, 10, 2, 8, 24, 14, 32, 27, 3, 9, 19, 13, 30, 6, 22, 11, 4, 25]
-    def permute(block, table): return [block[x - 1] for x in table]
-    def bits_to_bytes(bits): return bytes(sum(bits[i + j] << (7 - j) for j in range(8)) for i in range(0, len(bits), 8))
-    def bytes_to_bits(data): return [int(b) for byte in data for b in format(byte, '08b')]
-    def des_encrypt(data_bytes, key_bytes):
-        data_bits = bytes_to_bits(data_bytes)
-        key_bits = bytes_to_bits(key_bytes)
-        key_p = permute(key_bits, CP_1)
-        L_k, R_k = key_p[:28], key_p[28:]
-        keys = []
-        for shift in SHIFTS:
-            L_k = L_k[shift:] + L_k[:shift]
-            R_k = R_k[shift:] + R_k[:shift]
-            keys.append(permute(L_k + R_k, CP_2))
-        p_bits = permute(data_bits, PI)
-        L, R = p_bits[:32], p_bits[32:]
-        for k in keys:
-            E_R = permute(R, E)
-            X = [a ^ b for a, b in zip(E_R, k)]
-            S_out = []
-            for i in range(8):
-                block = X[i*6:(i+1)*6]
-                row = (block[0] << 1) | block[5]
-                col = (block[1] << 3) | (block[2] << 2) | (block[3] << 1) | block[4]
-                val = S[i][row][col]
-                S_out.extend([int(b) for b in format(val, '04b')])
-            f_res = permute(S_out, P)
-            L, R = R, [a ^ b for a, b in zip(L, f_res)]
-        final_bits = permute(R + L, FP)
-        return bits_to_bytes(final_bits)
-    def reverse_bits(b): return sum((1 if (b & (1 << i)) else 0) << (7 - i) for i in range(8))
-    raw_key = [0xe8, 0x4a, 0xd6, 0x60, 0x14, 0xbf, 0xd8, 0x10]
-    vnc_key = bytes([reverse_bits(b) for b in raw_key])
-    pwd = (os.environ.get('VNC_PASS', 'vncpassword')[:8].ljust(8, '\x00')).encode('latin1')
-    encrypted = des_encrypt(pwd, vnc_key)
-    with open(os.environ.get('VNC_PW_FILE'), 'wb') as f: f.write(encrypted)
-
-create_vnc_passwd(os.environ.get('VNC_PASS', 'vncpassword'), os.environ.get('VNC_PW_FILE'))
-" 2>/dev/null || true
-fi
-
-# Secondary fallback to x11vnc CLI if Python script was not used
-if [ ! -f "$VNC_PW_FILE" ] && command -v x11vnc &>/dev/null; then
-    (printf "%s\n%s\ny\n" "$VNC_PASS" "$VNC_PASS" | x11vnc -storepw "$VNC_PW_FILE" >/dev/null 2>&1) || true
+mkdir -p "$VNC_DIR"
+if command -v x11vnc &>/dev/null; then
+    x11vnc -storepasswd "$VNC_PASS" "$VNC_PW_FILE" >/dev/null 2>&1 || true
 fi
 
 if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
@@ -222,6 +185,92 @@ fi
 if [ -d /usr/share/novnc ] && [ ! -f /usr/share/novnc/index.html ]; then
     sudo ln -sf /usr/share/novnc/vnc.html /usr/share/novnc/index.html
     MODIFIED_PATHS+=("/usr/share/novnc/index.html (symlink -> vnc.html)")
+fi
+
+# Determine the real user and home directory running the service
+REAL_USER="$USER"
+REAL_HOME="$HOME"
+if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+    REAL_USER="$SUDO_USER"
+    REAL_HOME="$(eval echo "~$SUDO_USER")"
+fi
+
+# Create start-novnc wrapper script
+echo "==> Creating noVNC startup wrapper script at /usr/local/bin/start-novnc.sh..."
+sudo tee /usr/local/bin/start-novnc.sh > /dev/null << 'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Pre-flight check: ensure VNC password file exists
+if [ ! -f "$HOME/.vnc/passwd" ]; then
+    echo "FATAL: VNC password file missing at $HOME/.vnc/passwd." >&2
+    echo "Please set one by running: x11vnc -storepasswd <your-password> ~/.vnc/passwd" >&2
+    exit 1
+fi
+
+export DISPLAY=:99
+rm -f /tmp/.X99-lock
+
+# 1. Start virtual display
+Xvfb :99 -screen 0 1920x1080x24 &
+sleep 1
+
+# 2. Start Desktop Environment / Window Manager
+if command -v startxfce4 &>/dev/null; then
+    startxfce4 &
+elif command -v xfce4-session &>/dev/null; then
+    xfce4-session &
+elif command -v openbox-session &>/dev/null; then
+    openbox-session &
+elif command -v lxsession &>/dev/null; then
+    lxsession &
+elif command -v mate-session &>/dev/null; then
+    mate-session &
+elif command -v gnome-session &>/dev/null; then
+    gnome-session &
+else
+    echo "WARNING: No desktop environment/window manager found. noVNC will run with a blank screen." >&2
+fi
+
+# 3. Start VNC server bound strictly to localhost
+x11vnc -display :99 -rfbport 5900 -rfbauth "$HOME/.vnc/passwd" -forever -shared -localhost &
+
+# 4. Start noVNC WebSockets proxy on port 6080
+exec websockify --web /usr/share/novnc 127.0.0.1:6080 127.0.0.1:5900
+EOF
+
+sudo chmod +x /usr/local/bin/start-novnc.sh
+MODIFIED_PATHS+=("/usr/local/bin/start-novnc.sh")
+
+# Create systemd service file
+echo "==> Creating systemd service file at /etc/systemd/system/novnc.service..."
+sudo tee /etc/systemd/system/novnc.service > /dev/null << EOF
+[Unit]
+Description=Headless X11 + noVNC Web Desktop
+After=network.target
+
+[Service]
+Type=simple
+User=${REAL_USER}
+Environment=HOME=${REAL_HOME}
+ExecStart=/usr/local/bin/start-novnc.sh
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+MODIFIED_PATHS+=("/etc/systemd/system/novnc.service")
+
+# Enable and start the service if requested
+if [[ "$START_SERVICE_RESP" =~ ^[Yy]$ ]]; then
+    echo "==> Reloading systemd daemon, enabling and starting 'novnc' service..."
+    sudo systemctl daemon-reload
+    sudo systemctl enable --now novnc
+    INSTALLED_COMPONENTS+=("noVNC systemd Service (running as ${REAL_USER})")
+else
+    echo "==> systemd service 'novnc' created but NOT enabled/started."
 fi
 
 # Tailscale Serve Configuration
@@ -272,6 +321,15 @@ fi
 if [[ "$TS_SERVE_RESP" =~ ^[Yy]$ ]]; then
     echo "  * Tailscale Serve Status:"
     echo "      Run 'sudo tailscale serve status' to view your private HTTPS domain."
+fi
+
+if [[ "$START_SERVICE_RESP" =~ ^[Yy]$ ]]; then
+    echo "  * noVNC Background Service Verification:"
+    echo "      Check service status:   sudo systemctl status novnc"
+    echo "      View service logs:      sudo journalctl -u novnc -f"
+    echo "      Verify port binding:    sudo ss -tulpn | grep -E '6080|5900'"
+    echo "  * Change VNC Password:"
+    echo "      Run: x11vnc -storepasswd <new-password> ~/.vnc/passwd"
 fi
 
 if [[ "$INSTALL_CF_RESP" =~ ^[Yy]$ ]]; then
