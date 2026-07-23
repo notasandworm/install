@@ -138,8 +138,8 @@ LOCAL_HARNESS=""
 if [ -n "$SCRIPT_SOURCE" ] && [ "$SCRIPT_SOURCE" != "-" ] && [ -f "$SCRIPT_SOURCE" ]; then
     SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_SOURCE")" && pwd)"
     REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-    if [ -f "$REPO_ROOT/bin/test-vm" ]; then
-        LOCAL_HARNESS="$REPO_ROOT/bin/test-vm"
+    if [ -f "$REPO_ROOT/bin/qemu-vm" ]; then
+        LOCAL_HARNESS="$REPO_ROOT/bin/qemu-vm"
     fi
 fi
 
@@ -147,30 +147,32 @@ echo ""
 if [ -n "$LOCAL_HARNESS" ]; then
     chmod +x "$LOCAL_HARNESS"
     if [ -w /usr/local/bin ]; then
-        cp "$LOCAL_HARNESS" /usr/local/bin/test-vm
+        cp "$LOCAL_HARNESS" /usr/local/bin/qemu-vm
     else
-        sudo cp "$LOCAL_HARNESS" /usr/local/bin/test-vm
-        sudo chmod +x /usr/local/bin/test-vm
+        sudo cp "$LOCAL_HARNESS" /usr/local/bin/qemu-vm
+        sudo chmod +x /usr/local/bin/qemu-vm
     fi
-    echo "✅ Installed 'test-vm' harness to /usr/local/bin/test-vm"
-    INSTALLED_COMPONENTS+=("Installed test-vm CLI to /usr/local/bin")
+    echo "✅ Installed 'qemu-vm' harness to /usr/local/bin/qemu-vm"
+    INSTALLED_COMPONENTS+=("Installed qemu-vm CLI to /usr/local/bin")
 else
-    echo "==> Fetching latest 'test-vm' harness from GitHub..."
+    echo "==> Fetching latest 'qemu-vm' harness from GitHub..."
     if [ -w /usr/local/bin ]; then
-        curl -fsSL https://raw.githubusercontent.com/notasandworm/install/feat-ability-qemu/bin/test-vm -o /usr/local/bin/test-vm
-        chmod +x /usr/local/bin/test-vm
+        curl -fsSL https://raw.githubusercontent.com/notasandworm/install/feat-ability-qemu/bin/qemu-vm -o /usr/local/bin/qemu-vm
+        chmod +x /usr/local/bin/qemu-vm
     else
-        sudo curl -fsSL https://raw.githubusercontent.com/notasandworm/install/feat-ability-qemu/bin/test-vm -o /usr/local/bin/test-vm
-        sudo chmod +x /usr/local/bin/test-vm
+        sudo curl -fsSL https://raw.githubusercontent.com/notasandworm/install/feat-ability-qemu/bin/qemu-vm -o /usr/local/bin/qemu-vm
+        sudo chmod +x /usr/local/bin/qemu-vm
     fi
-    echo "✅ Installed 'test-vm' harness to /usr/local/bin/test-vm"
-    INSTALLED_COMPONENTS+=("Installed test-vm CLI to /usr/local/bin")
+    echo "✅ Installed 'qemu-vm' harness to /usr/local/bin/qemu-vm"
+    INSTALLED_COMPONENTS+=("Installed qemu-vm CLI to /usr/local/bin")
 fi
 
 echo ""
 echo "=============================================================================="
-echo "🎉 QEMU / KVM Provisioning Complete!"
+echo "🎉 Yay us! QEMU / KVM Provisioning Complete!"
 echo "=============================================================================="
+echo "Ephemeral KVM testing now available."
+echo ""
 echo "Installed Components:"
 for item in "${INSTALLED_COMPONENTS[@]}"; do
     echo "  - $item"
@@ -178,8 +180,8 @@ done
 
 echo ""
 echo "Usage:"
-echo "  Run post-install script tests inside instant ephemeral KVM VMs:"
-echo "    test-vm run --os debian12 --script bin/deb/dev.sh"
-echo "    test-vm run --os debian13 --script bin/deb/hdi.sh"
-echo "    test-vm run --os arch --script bin/deb/vnc.sh"
+echo "  Run virtual machines via qemu-system-x86_64:"
+echo "    qemu-vm run --os debian12 --script bin/deb/dev.sh"
+echo "    qemu-vm run --os debian13 --script bin/deb/hdi.sh"
+echo "    qemu-vm run --os arch --script bin/deb/vnc.sh"
 echo "=============================================================================="

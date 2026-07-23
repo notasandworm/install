@@ -27,7 +27,7 @@ echo ""
 echo "--- 1. Script Syntax Verification (bash -n) ---"
 run_test "bin/deb/kvm.sh syntax" bash -n "$REPO_ROOT/bin/deb/kvm.sh"
 run_test "bin/arch/kvm.sh syntax" bash -n "$REPO_ROOT/bin/arch/kvm.sh"
-run_test "bin/test-vm syntax" bash -n "$REPO_ROOT/bin/test-vm"
+run_test "bin/qemu-vm syntax" bash -n "$REPO_ROOT/bin/qemu-vm"
 
 # 2. Piped Execution BASH_SOURCE Check
 echo ""

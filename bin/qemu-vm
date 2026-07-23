@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ==============================================================================
-# Ephemeral QEMU/KVM Test Harness for Post-Install Scripts & AI Agents
+# Ephemeral QEMU/KVM Virtual Machine Runner (qemu-system-x86_64 Wrapper)
 # ==============================================================================
 
 CACHE_DIR="${HOME}/.cache/qemu-test-images"
@@ -13,7 +13,11 @@ DEFAULT_PORT="2222"
 
 usage() {
     cat <<EOF
-Usage: test-vm <command> [options]
+Usage: qemu-vm <command> [options]
+
+Description:
+  Lightweight ephemeral virtual machine runner powered by standard qemu-system-x86_64,
+  qemu-img Copy-on-Write (CoW) overlays, and Cloud-Init.
 
 Commands:
   run          Run a script inside a fresh ephemeral VM and exit
@@ -30,10 +34,10 @@ Options for 'run' and 'interactive':
   -h, --help       Show this help message
 
 Examples:
-  test-vm run --os debian12 --script bin/deb/dev.sh
-  test-vm run --os debian13 --script bin/deb/hdi.sh
-  test-vm run --os arch --url https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/vnc.sh
-  test-vm interactive --os debian12
+  qemu-vm run --os debian12 --script bin/deb/dev.sh
+  qemu-vm run --os debian13 --script bin/deb/hdi.sh
+  qemu-vm run --os arch --url https://raw.githubusercontent.com/notasandworm/install/feat-ability-qemu/bin/deb/vnc.sh
+  qemu-vm interactive --os debian12
 EOF
     exit 0
 }
