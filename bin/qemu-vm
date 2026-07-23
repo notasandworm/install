@@ -247,6 +247,7 @@ qemu-system-x86_64 \
     -pidfile "$QEMU_PID_FILE" > "$TMP_DIR/qemu.log" 2>&1 &
 
 SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=2 -o LogLevel=QUIET -i $SSH_KEY -p $SSH_PORT"
+SCP_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=2 -o LogLevel=QUIET -i $SSH_KEY -P $SSH_PORT"
 
 # 5. Poll SSH Port Readiness
 echo "==> Waiting for VM boot & SSH readiness..."
@@ -283,7 +284,7 @@ elif [ "$COMMAND" = "run" ]; then
             exit 1
         fi
         echo "==> Transferring local script '$SCRIPT_PATH' to VM..."
-        scp -q $SSH_OPTS "$SCRIPT_PATH" testuser@127.0.0.1:/tmp/test-script.sh
+        scp -q $SCP_OPTS "$SCRIPT_PATH" testuser@127.0.0.1:/tmp/test-script.sh
         echo "==> Executing script inside VM..."
         echo "------------------------------------------------------------------------------"
         ssh $SSH_OPTS testuser@127.0.0.1 "chmod +x /tmp/test-script.sh && bash /tmp/test-script.sh $SCRIPT_ARGS"
