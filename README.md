@@ -1,6 +1,22 @@
 # Post-Install Provisioning & Hardening Suite
 
-I built this modular post-installation repository to automate provisioning, baseline security setup, human device interaction toolkits, and secure remote headless desktop environments across my Debian, Ubuntu, and Arch Linux workstations and servers.
+I built this modular post-installation repository to automate provisioning, baseline security setup, human device interaction toolkits, and secure remote headless desktop environments across my Debian and Arch Linux workstations and servers.
+
+---
+
+## Project Goals & Testing Pipeline
+
+This project was built to achieve three core goals:
+
+1. **Modular Provisioning (Consumer)**:
+   User machine can selectively deploy specialized package configurations depending on their machine's role (e.g., workstation developer utilities, secure headless remote desktops, network storage sharing, or security hardening suites).
+2. **Adding Install Scripts and Sandboxed Testing (Developer)**:
+   Test new installation script features inside fully isolated, hardware-accelerated guest virtual machines on demand via the user-space `qemu-vm` runner. This avoids messing up the host environment or running slow, manual OS installers.
+3. **Automated Error Pinpointing**:
+   * Allows for quick assessment of broken packages, broken links, and installation issues.
+   All scripts are structured to immediately surface and isolate setup issues:
+   * Executed with `set -euo pipefail`. The script halts execution the moment a command fails (`-e`), an unassigned variable is queried (`-u`), or a pipe step errors out (`pipefail`).
+   * The `qemu-vm` runner pipes guest stdout/stderr directly back to the host console. If a package setup fails (e.g., repository GPG keys or missing dependencies), it outputs the exact failing command and aborts with a non-zero exit code, pinpointing the precise cause of failure.
 
 ---
 
@@ -11,26 +27,26 @@ You can run any full provisioning module remotely via `curl`:
 ### Debian and Debian Derivatives
 
 ```bash
-# Secure Headless Desktop & noVNC Suite
-curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/vnc.sh | bash
-
-# Human Device Interaction Suite (HDI)
-curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/hdi.sh | bash
-
 # Developer Workstation & Tooling
 curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/dev.sh | bash
 
 # Server Hardening & Security Baseline
 curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/hardening.sh | bash
 
+# Secure Headless Desktop & noVNC Suite
+curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/vnc.sh | bash
+
+# Human Device Interaction Suite (HDI)
+curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/hdi.sh | bash
+
 # Samba Storage Server Host
 curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/samba-srv.sh | bash
 
-# QEMU / KVM Virtualization & Test Harness (Debian/Ubuntu)
-curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/kvm.sh | bash
-
 # CIFS Mount Client
 curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/samba-cli.sh | bash
+
+# QEMU / KVM Virtualization & Test Harness
+curl -fsSL https://raw.githubusercontent.com/notasandworm/install/main/bin/deb/kvm.sh | bash
 ```
 ### Arch
 
@@ -138,7 +154,7 @@ Performs a `bash -n` syntax check on all scripts and validates that cloud image 
 
 ### 2. Ephemeral Guest VM Integration Runner
 Spins up a headless KVM VM using `qemu-vm` and executes target installation scripts end-to-end to verify installation success:
-* **Test local file in guest VM (Recommended for development)**:
+* **Test local file in guest VM (Recommended for adding install scripts and checking for broken links)**:
   ```bash
   ./tests/verify_vm_runs.sh --module dev --mode local
   ```
