@@ -101,6 +101,9 @@ if [ ${#SELECTED_PKGS[@]} -gt 0 ]; then
     echo "==> Configuring package repositories..."
     if is_pkg_selected "eza" && ! apt-cache show eza &>/dev/null; then
         echo "==> Configuring eza community repository..."
+        if ! command -v gpg &>/dev/null; then
+            sudo apt-get update && sudo apt-get install -y gnupg
+        fi
         sudo mkdir -p /etc/apt/keyrings
         sudo wget -qO- https://raw.githubusercontent.com/eza-community/eza/main/deb.asc | sudo gpg --dearmor --yes -o /etc/apt/keyrings/gierens.gpg
         echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main" | sudo tee /etc/apt/sources.list.d/gierens.list
