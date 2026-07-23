@@ -7,15 +7,24 @@ prompt_read() {
     local default_val="${3:-}"
     local input_val=""
 
-    if [ -c /dev/tty ]; then
+    if [ -t 0 ] && [ -c /dev/tty ]; then
         read -r -p "$prompt_text" input_val < /dev/tty || input_val="$default_val"
     else
-        input_val="$default_val"
+        read -r -p "$prompt_text" input_val || input_val="$default_val"
     fi
     eval "$target_var=\"\${input_val:-\$default_val}\""
 }
 
-echo "==> Setting up QEMU / KVM Virtualization & AI Agent Test Suite (Debian/Ubuntu)..."
+echo "==> QEMU / KVM Virtualization & AI Agent Test Suite Setup (Debian/Ubuntu)"
+
+# Initial Toolkit Confirmation
+echo ""
+prompt_read "Install QEMU/KVM package suite & test harness? [Y/n]: " INSTALL_TOOLKIT_RESP "Y"
+
+if [[ ! "$INSTALL_TOOLKIT_RESP" =~ ^[Yy]$ ]]; then
+    echo "==> Setup cancelled by user. Exiting without modifying system."
+    exit 0
+fi
 
 declare -a INSTALLED_COMPONENTS=()
 
@@ -35,15 +44,12 @@ KVM_PKGS=(
 echo ""
 echo "QEMU/KVM Package Suite:"
 echo "  ${KVM_PKGS[*]}"
-prompt_read "Install QEMU/KVM package suite? [Y/n]: " INSTALL_PKGS_RESP "Y"
 
-if [[ "$INSTALL_PKGS_RESP" =~ ^[Yy]$ ]]; then
-    echo "==> Updating APT package index..."
-    sudo apt-get update
-    echo "==> Installing QEMU/KVM packages..."
-    sudo apt-get install -y "${KVM_PKGS[@]}"
-    INSTALLED_COMPONENTS+=("QEMU/KVM Core Packages")
-fi
+echo "==> Updating APT package index..."
+sudo apt-get update
+echo "==> Installing QEMU/KVM packages..."
+sudo apt-get install -y "${KVM_PKGS[@]}"
+INSTALLED_COMPONENTS+=("QEMU/KVM Core Packages")
 
 # Hardware Virtualization Check
 echo ""
@@ -72,55 +78,93 @@ if [ -n "${USER:-}" ] && [ "$USER" != "root" ]; then
     fi
 fi
 
-# Base Image Cache Setup
+# Base Image Cache Setup & Granular Prompts
 CACHE_DIR="${HOME}/.cache/qemu-test-images"
 mkdir -p "$CACHE_DIR"
 
 DEBIAN12_URL="https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2"
-DEBIAN13_URL="https://cloud.debian.org/images/cloud/trixie/daily/latest/debian-13-generic-amd64.qcow2"
+DEBIAN13_URL="https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-amd64.qcow2"
+ARCH_URL="https://geo.mirror.pkgbuild.com/images/latest/Arch-Linux-x86_64-basic.qcow2"
 
 echo ""
 echo "Base Cloud Images Caching (~/.cache/qemu-test-images):"
-echo "  - Debian 12 (Bookworm Generic Cloud)"
-echo "  - Debian 13 (Trixie Generic Cloud)"
-
-prompt_read "Pre-download baseline Debian QCOW2 cloud images now? [Y/n]: " DOWNLOAD_IMAGES_RESP "Y"
+prompt_read "Pre-download baseline QCOW2 cloud images now? [y/N]: " DOWNLOAD_IMAGES_RESP "N"
 
 if [[ "$DOWNLOAD_IMAGES_RESP" =~ ^[Yy]$ ]]; then
-    if [ ! -f "$CACHE_DIR/debian-12-generic-amd64.qcow2" ]; then
-        echo "==> Fetching Debian 12 (Bookworm) Cloud Image..."
-        wget -q --show-progress -O "$CACHE_DIR/debian-12-generic-amd64.qcow2" "$DEBIAN12_URL"
+    # 1. Debian 12 (Bookworm)
+    echo ""
+    if [ -f "$CACHE_DIR/debian-12-generic-amd64.qcow2" ]; then
+        prompt_read "Debian 12 image is already cached. Re-download / overwrite? [y/N]: " DL_DEB12 "N"
     else
-        echo "✅ Debian 12 cloud image is already cached."
+        prompt_read "Download Debian 12 (Bookworm) Cloud Image? [Y/n]: " DL_DEB12 "Y"
+    fi
+    if [[ "$DL_DEB12" =~ ^[Yy]$ ]]; then
+        echo "==> Downloading Debian 12 (Bookworm) Cloud Image..."
+        wget -q --show-progress -O "$CACHE_DIR/debian-12-generic-amd64.qcow2" "$DEBIAN12_URL"
+        INSTALLED_COMPONENTS+=("Cached Debian 12 (Bookworm) Image")
     fi
 
-    if [ ! -f "$CACHE_DIR/debian-13-generic-amd64.qcow2" ]; then
-        echo "==> Fetching Debian 13 (Trixie) Cloud Image..."
-        wget -q --show-progress -O "$CACHE_DIR/debian-13-generic-amd64.qcow2" "$DEBIAN13_URL" || echo "⚠️ Daily build of Debian 13 temporary fetch issue; can be fetched on demand by test-vm script."
+    # 2. Debian 13 (Trixie)
+    echo ""
+    if [ -f "$CACHE_DIR/debian-13-generic-amd64.qcow2" ]; then
+        prompt_read "Debian 13 image is already cached. Re-download / overwrite? [y/N]: " DL_DEB13 "N"
     else
-        echo "✅ Debian 13 cloud image is already cached."
+        prompt_read "Download Debian 13 (Trixie) Cloud Image? [y/N]: " DL_DEB13 "N"
     fi
-    INSTALLED_COMPONENTS+=("Cached Debian Cloud Base Images")
+    if [[ "$DL_DEB13" =~ ^[Yy]$ ]]; then
+        echo "==> Downloading Debian 13 (Trixie) Cloud Image..."
+        wget -q --show-progress -O "$CACHE_DIR/debian-13-generic-amd64.qcow2" "$DEBIAN13_URL"
+        INSTALLED_COMPONENTS+=("Cached Debian 13 (Trixie) Image")
+    fi
+
+    # 3. Arch Linux
+    echo ""
+    if [ -f "$CACHE_DIR/arch-linux-x86_64-basic.qcow2" ]; then
+        prompt_read "Arch Linux image is already cached. Re-download / overwrite? [y/N]: " DL_ARCH "N"
+    else
+        prompt_read "Download Arch Linux Cloud Image? [y/N]: " DL_ARCH "N"
+    fi
+    if [[ "$DL_ARCH" =~ ^[Yy]$ ]]; then
+        echo "==> Downloading Arch Linux Cloud Image..."
+        wget -q --show-progress -O "$CACHE_DIR/arch-linux-x86_64-basic.qcow2" "$ARCH_URL"
+        INSTALLED_COMPONENTS+=("Cached Arch Linux Image")
+    fi
 fi
 
-# Helper Harness Installation
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+# Safe BASH_SOURCE resolution for piped stdin vs local file execution
+SCRIPT_SOURCE="${BASH_SOURCE[0]:-}"
+LOCAL_HARNESS=""
 
-if [ -f "$REPO_ROOT/bin/test-vm" ]; then
-    chmod +x "$REPO_ROOT/bin/test-vm"
-    if [ -w /usr/local/bin ]; then
-        cp "$REPO_ROOT/bin/test-vm" /usr/local/bin/test-vm
-        echo "✅ Installed 'test-vm' harness to /usr/local/bin/test-vm"
-        INSTALLED_COMPONENTS+=("Installed test-vm CLI to /usr/local/bin")
-    else
-        if prompt_read "Install 'test-vm' harness to /usr/local/bin/test-vm via sudo? [Y/n]: " INSTALL_HARNESS_RESP "Y" && [[ "$INSTALL_HARNESS_RESP" =~ ^[Yy]$ ]]; then
-            sudo cp "$REPO_ROOT/bin/test-vm" /usr/local/bin/test-vm
-            sudo chmod +x /usr/local/bin/test-vm
-            echo "✅ Installed 'test-vm' harness to /usr/local/bin/test-vm"
-            INSTALLED_COMPONENTS+=("Installed test-vm CLI to /usr/local/bin")
-        fi
+if [ -n "$SCRIPT_SOURCE" ] && [ "$SCRIPT_SOURCE" != "-" ] && [ -f "$SCRIPT_SOURCE" ]; then
+    SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_SOURCE")" && pwd)"
+    REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+    if [ -f "$REPO_ROOT/bin/test-vm" ]; then
+        LOCAL_HARNESS="$REPO_ROOT/bin/test-vm"
     fi
+fi
+
+echo ""
+if [ -n "$LOCAL_HARNESS" ]; then
+    chmod +x "$LOCAL_HARNESS"
+    if [ -w /usr/local/bin ]; then
+        cp "$LOCAL_HARNESS" /usr/local/bin/test-vm
+    else
+        sudo cp "$LOCAL_HARNESS" /usr/local/bin/test-vm
+        sudo chmod +x /usr/local/bin/test-vm
+    fi
+    echo "✅ Installed 'test-vm' harness to /usr/local/bin/test-vm"
+    INSTALLED_COMPONENTS+=("Installed test-vm CLI to /usr/local/bin")
+else
+    echo "==> Fetching latest 'test-vm' harness from GitHub..."
+    if [ -w /usr/local/bin ]; then
+        curl -fsSL https://raw.githubusercontent.com/notasandworm/install/feat-ability-qemu/bin/test-vm -o /usr/local/bin/test-vm
+        chmod +x /usr/local/bin/test-vm
+    else
+        sudo curl -fsSL https://raw.githubusercontent.com/notasandworm/install/feat-ability-qemu/bin/test-vm -o /usr/local/bin/test-vm
+        sudo chmod +x /usr/local/bin/test-vm
+    fi
+    echo "✅ Installed 'test-vm' harness to /usr/local/bin/test-vm"
+    INSTALLED_COMPONENTS+=("Installed test-vm CLI to /usr/local/bin")
 fi
 
 echo ""

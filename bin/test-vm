@@ -124,7 +124,7 @@ case "$OS" in
         ;;
     debian13|trixie)
         BASE_IMAGE_NAME="debian-13-generic-amd64.qcow2"
-        IMAGE_URL="https://cloud.debian.org/images/cloud/trixie/daily/latest/debian-13-generic-amd64.qcow2"
+        IMAGE_URL="https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-amd64.qcow2"
         ;;
     arch|archlinux)
         BASE_IMAGE_NAME="arch-linux-x86_64-basic.qcow2"
