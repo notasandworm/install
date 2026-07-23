@@ -2,6 +2,17 @@
 
 This reference manual provides practical instructions, scripts, and best practices for setting up and performing vision-based GUI automation and visual inspection (computer use) in XFCE/X11 and Wayland environments.
 
+> [!TIP]
+> **Quick Start Commands:**
+> * **Python Virtualenv is available for computer use!** Activate it:
+>   ```bash
+>   source ~/.computer-use-venv/bin/activate
+>   ```
+> * **ydotool service is active!** Run it without sudo:
+>   ```bash
+>   export YDOTOOL_SOCKET=/tmp/.ydotool_socket && ydotool click 1
+>   ```
+
 ---
 
 ## 1. System Requirements & Tooling Overview

@@ -203,16 +203,31 @@ EOF
     sudo systemctl enable --now ydotool 2>/dev/null || true
 fi
 
-# Copy Computer Use Recipes manual to the consumer's home folder
+# Copy or download Computer Use Recipes manual to the consumer's home folder
 if [[ "$COPY_RECIPES_RESP" =~ ^[Yy]$ ]]; then
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd 2>/dev/null || pwd)"
     SRC_RECIPES="${SCRIPT_DIR}/../../docs/computer_use_recipes.md"
     DEST_RECIPES="$REAL_HOME/computer_use_recipes.md"
+    
     if [ -f "$SRC_RECIPES" ]; then
         echo "==> Copying Computer Use Recipes to $DEST_RECIPES..."
         cp "$SRC_RECIPES" "$DEST_RECIPES"
         [ -n "${SUDO_USER:-}" ] && chown "$SUDO_USER:$SUDO_USER" "$DEST_RECIPES" 2>/dev/null || true
         MODIFIED_PATHS+=("$DEST_RECIPES")
+    elif command -v curl &>/dev/null; then
+        echo "==> Downloading Computer Use Recipes from GitHub to $DEST_RECIPES..."
+        curl -fsSL "https://raw.githubusercontent.com/notasandworm/install/main/docs/computer_use_recipes.md" -o "$DEST_RECIPES" || true
+        if [ -f "$DEST_RECIPES" ]; then
+            [ -n "${SUDO_USER:-}" ] && chown "$SUDO_USER:$SUDO_USER" "$DEST_RECIPES" 2>/dev/null || true
+            MODIFIED_PATHS+=("$DEST_RECIPES")
+        fi
+    elif command -v wget &>/dev/null; then
+        echo "==> Downloading Computer Use Recipes from GitHub to $DEST_RECIPES..."
+        wget -qO "$DEST_RECIPES" "https://raw.githubusercontent.com/notasandworm/install/main/docs/computer_use_recipes.md" || true
+        if [ -f "$DEST_RECIPES" ]; then
+            [ -n "${SUDO_USER:-}" ] && chown "$SUDO_USER:$SUDO_USER" "$DEST_RECIPES" 2>/dev/null || true
+            MODIFIED_PATHS+=("$DEST_RECIPES")
+        fi
     fi
 fi
 
