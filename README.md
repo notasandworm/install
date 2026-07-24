@@ -86,8 +86,10 @@ Provisions an isolated HTML5 web desktop environment:
 
 ### 2. Human Device Interaction Suite (`bin/deb/hdi.sh`)
 Provisions toolkits for autonomous computer use and automated web frontend engineering:
-- **Toolkit 1 (Autonomous Computer Use & GUI Navigation)**: Virtual display (`xvfb`), input injection (`xdotool`, `ydotool`), clipboard (`xclip`, `wl-clipboard`), visual capture/OCR (`maim`, `scrot`, `imagemagick`, `tesseract-ocr`), headless browsers & Playwright system libraries (`chromium`, `firefox-esr`, `libnss3`, etc.). Handles `ydotool` via default APT or official `trixie-backports` with interactive confirmation.
-- **Toolkit 2 (Automated Web Dev Frontend)**: Runtimes (`nodejs`, `npm`, `golang`, `python3`), search & code intelligence (`git`, `ripgrep`, `fd-find`, `jq`, `fzf`), and process supervision (`supervisor`, `tmux`, `make`, `build-essential`).
+- **Toolkit 1 (Autonomous Computer Use & GUI Navigation)**: Virtual display (`xvfb`), input injection (`xdotool`, `ydotool`), clipboard (`xclip`, `wl-clipboard`), visual capture/OCR (`maim`, `scrot`, `imagemagick`, `tesseract-ocr`), headless browsers & system libraries (`chromium`, `firefox-esr`), development environment headers (`python3`, `python3-pip`, `python3-venv`, `python3-tk`, `python3-dev`). Handles `ydotool` via default APT or official `trixie-backports` with automatic systemd `ydotool.service` socket provisioning.
+- **Python Virtualenv Setup (`~/.computer-use-venv`)**: Automatically configures a dedicated virtual environment with `mss`, `pyautogui`, `pillow`, `opencv-python-headless`, `pytesseract`, `playwright`, and pre-downloads Playwright Chromium binaries (`playwright install chromium`).
+- **Environment & Shell Configuration**: Automatically configures `export DISPLAY=:99` and `export YDOTOOL_SOCKET=/tmp/.ydotool_socket` in `.bashrc` and `.zshrc`, creates `~/.Xauthority` to eliminate X11 warnings, and copies the `computer_use_recipes.md` guide to `~/computer_use_recipes.md`.
+- **Toolkit 2 (Automated Web Dev Frontend)**: Runtimes (`nodejs`, `npm`, `golang`, `python3`), search & code intelligence (`git`, `ripgrep`, `fd-find`, `jq`, `fzf`, `patch`, `diffutils`), and process supervision (`supervisor`, `make`, `build-essential`). (Note: `tmux` is removed from this toolkit to avoid duplication).
 
 ### 3. Developer Workstation Setup (`bin/deb/dev.sh`)
 Provisions a full development workstation:
