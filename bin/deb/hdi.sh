@@ -55,7 +55,7 @@ SELECTED_PKGS=()
 
 # Toolkit 1: Autonomous Computer Use (GUI & Web Navigation)
 COMPUTER_USE_PKGS=(
-    xvfb x11-utils x11vnc wmctrl ffmpeg
+    xvfb x11-utils x11vnc wmctrl ffmpeg python3-tk python3-dev
     xdotool xclip wl-clipboard
     maim scrot imagemagick tesseract-ocr
     chromium firefox-esr
@@ -68,7 +68,7 @@ COMPUTER_USE_PKGS=(
 WEB_DEV_PKGS=(
     nodejs npm golang python3 python3-venv
     git ripgrep fd-find jq fzf patch diffutils
-    supervisor tmux make build-essential
+    supervisor make build-essential
 )
 
 ENABLE_BACKPORTS=false
@@ -111,7 +111,7 @@ fi
 
 echo ""
 echo "Toolkit 2: Automated Web Dev Frontend"
-echo "  Packages: nodejs, npm, golang, python3, git, ripgrep, fd-find, fzf, supervisor, tmux, make, build-essential"
+echo "  Packages: nodejs, npm, golang, python3, git, ripgrep, fd-find, fzf, supervisor, make, build-essential"
 prompt_read "Install Automated Web Dev Frontend suite? [Y/n]: " INSTALL_WD_RESP "Y"
 
 if [[ "$INSTALL_WD_RESP" =~ ^[Yy]$ ]]; then
@@ -167,13 +167,40 @@ if [[ "$INSTALL_CU_RESP" =~ ^[Yy]$ ]]; then
     "$VENV_PATH/bin/pip" install --upgrade pip >/dev/null 2>&1 || true
     echo "==> Installing Python GUI & Automation libraries (mss, pyautogui, pillow, opencv-python-headless, pytesseract, playwright)..."
     "$VENV_PATH/bin/pip" install mss pyautogui pillow opencv-python-headless pytesseract playwright >/dev/null 2>&1 || true
+    echo "==> Installing Playwright Chromium browser binaries..."
+    "$VENV_PATH/bin/playwright" install chromium >/dev/null 2>&1 || true
     
     if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
         chown -R "$SUDO_USER:$SUDO_USER" "$VENV_PATH" 2>/dev/null || true
         chown -R "$SUDO_USER:$SUDO_USER" "$REAL_HOME/.local" 2>/dev/null || true
+        chown -R "$SUDO_USER:$SUDO_USER" "$REAL_HOME/.cache/ms-playwright" 2>/dev/null || true
     fi
     MODIFIED_PATHS+=("$VENV_PATH (Python Virtualenv)")
 fi
+
+# Touch ~/.Xauthority to prevent X11 warnings and ensure correct user ownership
+XAUTH_FILE="$REAL_HOME/.Xauthority"
+if [ ! -f "$XAUTH_FILE" ]; then
+    touch "$XAUTH_FILE"
+    [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ] && chown "$SUDO_USER:$SUDO_USER" "$XAUTH_FILE" 2>/dev/null || true
+    chmod 600 "$XAUTH_FILE"
+    MODIFIED_PATHS+=("$XAUTH_FILE")
+fi
+
+# Configure shell environment exports for DISPLAY and YDOTOOL_SOCKET
+for rc in "$REAL_HOME/.bashrc" "$REAL_HOME/.zshrc"; do
+    if [ -f "$rc" ]; then
+        if ! grep -q "export DISPLAY=:99" "$rc"; then
+            echo 'export DISPLAY=:99' >> "$rc"
+            MODIFIED_PATHS+=("$rc (added export DISPLAY=:99)")
+        fi
+        if ! grep -q "export YDOTOOL_SOCKET=/tmp/.ydotool_socket" "$rc"; then
+            echo 'export YDOTOOL_SOCKET=/tmp/.ydotool_socket' >> "$rc"
+            MODIFIED_PATHS+=("$rc (added export YDOTOOL_SOCKET=/tmp/.ydotool_socket)")
+        fi
+        [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ] && chown "$SUDO_USER:$SUDO_USER" "$rc" 2>/dev/null || true
+    fi
+done
 
 # Configure ydotool systemd service and permissions if installed
 if command -v ydotool &>/dev/null; then
